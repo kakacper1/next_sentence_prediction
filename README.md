@@ -13,19 +13,26 @@
 
 # Running the code:
 
+1. Log in to the DTU server and Openxterm-LSF10-login-name. Then pick the GPU you would like to use:
 ```
-# 1. Log in to the DTU server and Openxterm-LSF10-login-name.
-# Then pick the GPU you would like to use
-$ k40sh or voltash
-# 2. Change directory:
+$ k40sh 
+#or
+$ voltash
+```
+2. Then import necessary modules:
+```
+# Change directory:
 $ cd /work3/s180011/next_sentence_prediction/
-# 3. Then import necessary modules:
 $ module load python3/3.6.2 numpy/1.13.1-python-3.6.2-openblas-0.2.20 matplotlib/2.0.2-python-3.6.2
-# 4. Install those that are impossible to load:
+```
+3. Install missing libraries:
+```
 $ pip3 install --user torchtext
-# In the end run training
+```
+4. In the end run training
+```
 $ python3 main.py 
-# iF you get Cuda out of memory then check nvidia-smi
+# if you get Cuda out of memory then check nvidia-smi
 ``` 
 
 # Training time
