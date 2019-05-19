@@ -1,5 +1,4 @@
-# match-lstm
-Pytorch Implementation of "Learning Natural Language Inference with LSTM", 2016, S. Wang et al. (https://arxiv.org/pdf/1512.08849.pdf)
+# next-sentence-prediction
 
 * [Python 3](https://www.python.org/downloads/)
 * [PyTorch 1.0.1](https://pytorch.org/)
@@ -14,11 +13,15 @@ Pytorch Implementation of "Learning Natural Language Inference with LSTM", 2016,
 
 # Experiment
 ```
-# Create a pickle file: data/snli.pkl
-$ python3 dataset.py
 
-# Run
-$ python3 main.py
+# Open xterm-LSF10-login-name and type:
+$ k40sh or voltash
+$ cd /work3/s180011/next_sentence_prediction/
+# Then import necessary modules:
+$ module load python3/3.6.2 numpy/1.13.1-python-3.6.2-openblas-0.2.20 matplotlib/2.0.2-python-3.6.2
+$ pip3 install --user torchtext
+# In the end run training
+$ python3 main.py 
 ``` 
 
 # Training time
