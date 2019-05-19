@@ -11,17 +11,21 @@
 * [Download glove.840B.300d.zip (2.0 GB)](http://nlp.stanford.edu/data/glove.840B.300d.zip) and decompress glove.840B.300d.txt to __$HOME/common/__
     * See [https://nlp.stanford.edu/projects/glove/](https://nlp.stanford.edu/projects/glove/)
 
-# Experiment
-```
+# Running the code:
 
-# Open xterm-LSF10-login-name and type:
+```
+# 1. Log in to the DTU server and Openxterm-LSF10-login-name.
+# Then pick the GPU you would like to use
 $ k40sh or voltash
+# 2. Change directory:
 $ cd /work3/s180011/next_sentence_prediction/
-# Then import necessary modules:
+# 3. Then import necessary modules:
 $ module load python3/3.6.2 numpy/1.13.1-python-3.6.2-openblas-0.2.20 matplotlib/2.0.2-python-3.6.2
+# 4. Install those that are impossible to load:
 $ pip3 install --user torchtext
 # In the end run training
 $ python3 main.py 
+# iF you get Cuda out of memory then check nvidia-smi
 ``` 
 
 # Training time
