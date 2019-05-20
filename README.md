@@ -1,5 +1,4 @@
-# match-lstm
-Pytorch Implementation of "Learning Natural Language Inference with LSTM", 2016, S. Wang et al. (https://arxiv.org/pdf/1512.08849.pdf)
+# next-sentence-prediction
 
 * [Python 3](https://www.python.org/downloads/)
 * [PyTorch 1.0.1](https://pytorch.org/)
@@ -12,13 +11,28 @@ Pytorch Implementation of "Learning Natural Language Inference with LSTM", 2016,
 * [Download glove.840B.300d.zip (2.0 GB)](http://nlp.stanford.edu/data/glove.840B.300d.zip) and decompress glove.840B.300d.txt to __$HOME/common/__
     * See [https://nlp.stanford.edu/projects/glove/](https://nlp.stanford.edu/projects/glove/)
 
-# Experiment
-```
-# Create a pickle file: data/snli.pkl
-$ python3 dataset.py
+# Running the code:
 
-# Run
-$ python3 main.py
+1. Log in to the DTU server and Openxterm-LSF10-login-name. Then pick the GPU you would like to use:
+```
+$ k40sh 
+#or
+$ voltash
+```
+2. Then import necessary modules:
+```
+# Change directory:
+$ cd /work3/s180011/next_sentence_prediction/
+$ module load python3/3.6.2 numpy/1.13.1-python-3.6.2-openblas-0.2.20 matplotlib/2.0.2-python-3.6.2
+```
+3. Install missing libraries:
+```
+$ pip3 install --user torchtext
+```
+4. In the end run training
+```
+$ python3 main.py 
+# if you get Cuda out of memory then check nvidia-smi
 ``` 
 
 # Training time
