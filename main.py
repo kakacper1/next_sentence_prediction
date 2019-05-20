@@ -1,3 +1,7 @@
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
 import argparse
 from datetime import datetime
 import time
@@ -6,7 +10,6 @@ import pprint
 import torch
 import datetime
 import numpy as np
-import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import roc_curve, auc
 from sklearn.metrics import confusion_matrix
@@ -46,7 +49,7 @@ parser.add_argument('--dropout_emb', type=float, default=0.3)
 
 parser.add_argument('--batch_size', type=int, default=30) # 512
 parser.add_argument('--max_epochs_num', type=int, default=30)
-parser.add_argument('--patience', type=int, default=6)
+parser.add_argument('--patience', type=int, default=3)
 
 parser.add_argument('--log_interval', type=int, default=200)
 parser.add_argument('--yes_cuda', type=int, default=1)
@@ -224,11 +227,11 @@ def get_wiki_dataset( args ):
 
 
 def set_plots_model_names(now_str, args):
-    model_path = "/res/models/" + args.model_name + "_%s.pt" % now_str
-    learning_curve_path = "res/plots/learning_curve_%s.svg" % now_str
-    roc_curve_path = "res/plots/roc_curve_%s.svg" % now_str
-    conf_mat_path = "res/plots/confusion_matrix_%s.svg" % now_str
-    norm_conf_mat_path = "res/plots/normalized_confusion_matrix_%s.svg" % now_str
+    model_path = "./res/models/" + args.model_name + "_%s.pt" % now_str
+    learning_curve_path = "./res/plots/learning_curve_%s.svg" % now_str
+    roc_curve_path = "./res/plots/roc_curve_%s.svg" % now_str
+    conf_mat_path = "./res/plots/confusion_matrix_%s.svg" % now_str
+    norm_conf_mat_path = "./res/plots/normalized_confusion_matrix_%s.svg" % now_str
     return model_path, learning_curve_path, roc_curve_path, conf_mat_path, norm_conf_mat_path
 
 
