@@ -39,7 +39,7 @@ parser.add_argument('--slice_test', type=int, default=None)
 parser.add_argument('--lr', type=float, default=0.000015)
 parser.add_argument('--lr_decay', type=float, default=0.95)
 parser.add_argument('--grad_max_norm', type=float, default=0.)
-#parser.add_argument('--weight_decay', type=float, default=1e-4)
+parser.add_argument('--weight_decay', type=float, default=1e-4)
 
 parser.add_argument('--embedding_dim', type=int, default=300)
 parser.add_argument('--hidden_size', type=int, default=300)
@@ -235,6 +235,36 @@ def set_plots_model_names(now_str, args):
     return model_path, learning_curve_path, roc_curve_path, conf_mat_path, norm_conf_mat_path
 
 
+def draw_learning_curve(train_acc, valid_acc, path ='./res/plots'):
+    epoch = np.arange(len(train_acc))
+
+    plt.figure()
+    plt.plot(epoch, train_acc, 'r', epoch, valid_acc, 'b')
+    plt.legend(['Train Acc', 'Val Acc'])
+    plt.xlabel('Epochs')
+    plt.ylabel('Acc')
+    # save plot
+    plt.savefig(path)
+
+
+def draw_roc_curve(y_test_preds, y_test_targs, path='.res/plots'):
+
+    fpr, tpr, thresholds = roc_curve(y_test_targs, y_test_preds)
+    roc_auc = auc(fpr, tpr)
+
+    plt.figure()
+    plt.title('Receiver Operating Characteristic (ROC)')
+    plt.plot(fpr, tpr, 'b', label='ROC curve (area = %0.2f)' % roc_auc)
+    plt.legend(loc='lower right')
+    plt.plot([0, 1], [0, 1], 'r--')
+    plt.xlim([0, 1])
+    plt.ylim([0, 1])
+    plt.ylabel('True Positive Rate')
+    plt.xlabel('False Positive Rate')
+    plt.savefig(path)
+
+
+
 def main():
 
     # handling arguments
@@ -377,13 +407,9 @@ def main():
             break
 
     # draw_results
-    epoch = np.arange(len(train_acc))
-    plt.figure()
-    plt.plot(epoch, train_acc, 'r', epoch, valid_acc, 'b')
-    plt.legend(['Train Acc', 'Val Acc'])
-    plt.xlabel('Epochs')
-    plt.ylabel('Acc')
+    draw_learning_curve(path=learning_curve_path)
 
+    # evaluation of test dataset
     test_targs, test_preds, raw_outputs_class_one, raw_outputs_class_two = [], [], [], []
     # Evaluate test set
     for batch_idx, batch in enumerate(test_iter):
@@ -399,49 +425,24 @@ def main():
             test_preds += list(preds.data.numpy())
             test_targs += list(batch.label.numpy())
 
-    plt.savefig(learning_curve_path)
+
     print("\nTest set Acc:  %f" % (accuracy_score(test_targs, test_preds)))
     print('size of train set: %d; val: %d; test: %d' % (len(train), len(val), len(test)))
-
 
     # for epoch in range(1, args.epochs + 1):
     #     train_epoch(device, train_loader, model, epoch, optimizer, loss_func,args)
 
-
-    #     valid_loss, valid_acc = \
-    #         evaluate_epoch(device, valid_loader, model, epoch, loss_func,
-    #                        'Valid')
-    #     if valid_loss < best_loss:
-    #         best_loss = valid_loss
-    #         best_acc = valid_acc
-    #         best_epoch = epoch
-    #     print('\tLowest Valid Loss {:.6f}, Acc. {:.1f}%, Epoch {}'.
-    #           format(best_loss, 100 * best_acc, best_epoch))
-    #
-    #     evaluate_epoch(device, test_loader, model, epoch, loss_func, 'Test')
-    #
-    #     # learning rate decay
-    #     for param_group in optimizer.param_groups:
+    # for param_group in optimizer.param_groups:
     #         print('lr: {:.6f} -> {:.6f}'
     #               .format(param_group['lr'], param_group['lr'] * args.lr_decay))
     #         param_group['lr'] *= args.lr_decay
 
     # Draw a roc curve
+
     y_test_preds = np.array(raw_outputs_class_two)
     y_test_targs = np.array(test_targs)
-    fpr, tpr, thresholds = roc_curve(y_test_targs, y_test_preds)
-    roc_auc = auc(fpr, tpr)
 
-    plt.figure()
-    plt.title('Receiver Operating Characteristic (ROC)')
-    plt.plot(fpr, tpr, 'b', label='ROC curve (area = %0.2f)' % roc_auc)
-    plt.legend(loc='lower right')
-    plt.plot([0, 1], [0, 1], 'r--')
-    plt.xlim([0, 1])
-    plt.ylim([0, 1])
-    plt.ylabel('True Positive Rate')
-    plt.xlabel('False Positive Rate')
-    plt.savefig(roc_curve_path)
+    draw_roc_curve(y_test_preds, y_test_targs, path=roc_curve_path)
 
     # Draw confusion matrices:
 
@@ -462,7 +463,6 @@ def main():
 
     # Save model
     torch.save(model, model_path)
-
 
     # handling precessing time
     stop = time.time()
