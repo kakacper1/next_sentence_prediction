@@ -39,7 +39,7 @@ parser.add_argument('--slice_test', type=int, default=None)
 parser.add_argument('--lr', type=float, default=0.000015)
 parser.add_argument('--lr_decay', type=float, default=0.95)
 parser.add_argument('--grad_max_norm', type=float, default=0.)
-parser.add_argument('--weight_decay', type=float, default=1e-4)
+#parser.add_argument('--weight_decay', type=float, default=1e-4)
 
 parser.add_argument('--embedding_dim', type=int, default=300)
 parser.add_argument('--hidden_size', type=int, default=300)
@@ -51,7 +51,7 @@ parser.add_argument('--batch_size', type=int, default=512)
 parser.add_argument('--max_epochs_num', type=int, default=120)
 parser.add_argument('--patience', type=int, default=4)
 
-parser.add_argument('--log_interval', type=int, default=200)
+#parser.add_argument('--log_interval', type=int, default=200)
 parser.add_argument('--yes_cuda', type=int, default=1)
 parser.add_argument('--num_workers', type=int, default=4)
 
@@ -461,7 +461,7 @@ def main():
     plt.savefig(norm_conf_mat_path)
 
     # Save model
-    torch.save(model.state_dict(), model_path)
+    torch.save(model, model_path)
 
 
     # handling precessing time
