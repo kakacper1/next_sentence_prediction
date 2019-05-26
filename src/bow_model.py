@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
-from torch.nn import Linear, ReLU, Dropout, BatchNorm1d
-
+from torch.nn import Linear, ReLU, Tanh, Dropout, BatchNorm1d
 
 
 class BoWNet(nn.Module):
@@ -34,6 +33,7 @@ class BoWNet(nn.Module):
         self.linear_out = Linear(in_features=self.conc_hidden_size, out_features=config.num_classes, bias=False)
 
         self.relu = nn.ReLU()
+        self.tanh = nn.Tanh()
         self.batchnorm = nn.BatchNorm1d(self.conc_hidden_size)
         self.dropout = nn.Dropout(p=config.dropout_ln)
 
@@ -88,4 +88,4 @@ class BoWNet(nn.Module):
         x = self.batchnorm(x)
 
         # return softmax(self.linear_out(x), dim=1) # for cross entropy we dont need softmax - is has it embedded
-        return self.relu(self.linear_out(x))
+        return self.tanh(self.linear_out(x))
