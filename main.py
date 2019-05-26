@@ -27,7 +27,7 @@ from torchtext.vocab import GloVe
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--seed', type=int, default=2019)
+parser.add_argument('--seed', type=int, default=20)
 parser.add_argument('--data_path', type=str, default='./res/data/wiki_pages/basic_50_50')
 parser.add_argument('--num_classes', type=int, default=2)
 
@@ -36,7 +36,7 @@ parser.add_argument('--slice_train', type=int, default=None)
 parser.add_argument('--slice_val', type=int, default=None)
 parser.add_argument('--slice_test', type=int, default=None)
 
-parser.add_argument('--lr', type=float, default=0.00005)
+parser.add_argument('--lr', type=float, default=0.000015)
 parser.add_argument('--lr_decay', type=float, default=0.95)
 parser.add_argument('--grad_max_norm', type=float, default=0.)
 parser.add_argument('--weight_decay', type=float, default=1e-4)
@@ -47,15 +47,15 @@ parser.add_argument('--hidden_size', type=int, default=300)
 parser.add_argument('--dropout_ln', type=float, default=0.3)
 parser.add_argument('--dropout_emb', type=float, default=0.3)
 
-parser.add_argument('--batch_size', type=int, default=30) # 512
-parser.add_argument('--max_epochs_num', type=int, default=30)
-parser.add_argument('--patience', type=int, default=3)
+parser.add_argument('--batch_size', type=int, default=512)
+parser.add_argument('--max_epochs_num', type=int, default=120)
+parser.add_argument('--patience', type=int, default=4)
 
 parser.add_argument('--log_interval', type=int, default=200)
 parser.add_argument('--yes_cuda', type=int, default=1)
 parser.add_argument('--num_workers', type=int, default=4)
 
-parser.add_argument('--model_name', type=str, default="default_name")
+parser.add_argument('--model_name', type=str, default="batch_size_512")
 
 
 # this is part of the code to refactor: We could take out code from the main function and organize/merge it here
@@ -441,7 +441,7 @@ def main():
     plt.ylim([0, 1])
     plt.ylabel('True Positive Rate')
     plt.xlabel('False Positive Rate')
-    plt.savefig('res/plots/roc_curve.svg')
+    plt.savefig(roc_curve_path)
 
     # Draw confusion matrices:
 

@@ -88,4 +88,4 @@ class BoWNet(nn.Module):
         x = self.batchnorm(x)
 
         # return softmax(self.linear_out(x), dim=1) # for cross entropy we dont need softmax - is has it embedded
-        return self.linear_out(x)
+        return self.relu(self.linear_out(x))
