@@ -28,7 +28,7 @@ from torchtext.vocab import GloVe
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--seed', type=int, default=20)
-parser.add_argument('--data_path', type=str, default='./res/data/wiki_pages/basic_50_50')
+parser.add_argument('--data_path', type=str, default='./res/data/train/wiki_swapped_new')
 parser.add_argument('--num_classes', type=int, default=2)
 
 
