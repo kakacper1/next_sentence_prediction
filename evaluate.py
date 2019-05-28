@@ -21,6 +21,9 @@ parser.add_argument('--yes_cuda', type=int, default=1)
 
 parser.add_argument('--batch_size', type=int, default=512)
 
+parser.add_argument('--load_args', type=bool, default=False)
+parser.add_argument('--args_path', type=str, default='./res/models/')
+
 #parser.add_argument('--model_name', type=str, default='./res/data/wiki_pages/basic_50_50')
 
 
