@@ -5,7 +5,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from mlstm_model import MatchLSTM
-from src.utils import *
 
 from torchtext import data, datasets
 from torchtext.vocab import GloVe
@@ -37,6 +36,44 @@ parser.add_argument('--epochs', type=int, default=20)
 parser.add_argument('--log_interval', type=int, default=100)
 parser.add_argument('--yes_cuda', type=int, default=1)
 parser.add_argument('--num_workers', type=int, default=4)
+
+
+def get_wiki_dataset( args ):
+
+    # define the columns that we want to process:
+    TEXT = data.Field(sequential=True,
+                      include_lengths=True,
+                      use_vocab=True)
+    LABELS = data.Field(sequential=False,
+                        use_vocab=True,
+                        pad_token=None,
+                        unk_token=None)
+
+    train_val_fields = [
+        ('label', LABELS),  # process it as label
+        ('premise', TEXT),  # process it as text
+        ('hypothesis', TEXT)  # process it as text
+    ]
+
+    # Load data set:
+    train, val, test = data.TabularDataset.splits(
+        path=args.data_path, train='train.tsv',
+        validation='dev.tsv', test='test.tsv', format='tsv',
+        fields=train_val_fields,
+        skip_header=True)
+
+    # Slice data if needed:
+    if args.slice_train is not None:
+        train.examples = train.examples[:args.slice_train]
+        assert (len(train) == args.slice_train), "Train data set does not equal"+str(args.slice_train)+"!"
+    if args.slice_val is not None:
+        val.examples = val.examples[:args.slice_val]
+        assert (len(val) == args.slice_val), "Val data set does not equal" + str(args.slice_val) + "!"
+    if args.slice_test is not None:
+        test.examples = test.examples[:args.slice_test]
+        assert (len(test) == args.slice_test), "Test data set does not equal" + str(args.slice_test) + "!"
+
+    return train, val, test, TEXT, LABELS
 
 
 def train_epoch(device, loader, model, epoch, optimizer, loss_func, config):
@@ -105,26 +142,23 @@ def evaluate_epoch(device, loader, model, epoch, loss_func, mode):
 
 
 def main():
-    # handle and display arguments
     args = parser.parse_args()
     pprint.PrettyPrinter().pprint(args.__dict__)
 
-    # handle cuda usage
     use_cuda = args.yes_cuda > 0 and torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
 
-    # set a seed to ensure deterministic start
     torch.manual_seed(args.seed)
     if use_cuda:
         torch.cuda.manual_seed(args.seed)
-    # print yupe of execution
     print('CUDA device_count {0}'.format(torch.cuda.device_count())
           if use_cuda else 'CPU')
 
-    # get next sentence prediction dataset
-    train, val, test, TEXT, LABELS = get_nsp_dataset(args)
+
+    train, val, test, TEXT, LABELS = get_wiki_dataset(args)
 
     # create batches:
+
     train_iter, val_iter, test_iter = data.BucketIterator.splits(
         (train, val, test), batch_sizes=(args.batch_size, args.batch_size, args.batch_size),
         sort_key=lambda x: len(x.premise), device=device, repeat=False)
@@ -143,8 +177,6 @@ def main():
 
     print('#examples', len(train_iter.dataset), len(val_iter.dataset),
           len(test_iter.dataset))
-
-
 
     model = MatchLSTM(args, TEXT).to(device)
 

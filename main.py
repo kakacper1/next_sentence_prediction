@@ -9,7 +9,6 @@ import torch
 import datetime
 import numpy as np
 from sklearn.metrics import accuracy_score
-import pickle
 import csv
 import torch.nn as nn
 import torch.optim as optim
@@ -54,7 +53,7 @@ parser.add_argument('--model_name', type=str, default="batch_size_512")
 parser.add_argument('--task_type', type=str, default="nsp")  # "nli"
 
 parser.add_argument('--save_model', type=bool, default=False)
-parser.add_argument('--save_feature_dict', type=bool, default=False)
+parser.add_argument('--save_args', type=bool, default=False)
 
 #todo read parameters from csv file
 
@@ -342,8 +341,8 @@ def main():
     #    with open(args_path+str(test_accuracy)+'.csv', 'wb') as handle:
     #        pickle.dump(args, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-
-    with open(args_path+str(test_accuracy)+'.csv', 'wb') as handle:  # Just use 'w' mode in 3.x
+    if args.save_args:
+        with open(args_path+str(test_accuracy)+'.csv', 'wb') as handle:
                 w = csv.DictWriter(handle, args.keys())
                 w.writeheader()
                 w.writerow(args)
