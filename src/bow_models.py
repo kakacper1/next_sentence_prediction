@@ -3,10 +3,10 @@ import torch.nn as nn
 from torch.nn import Linear, ReLU, Tanh, Dropout, BatchNorm1d
 
 
-class BoWNet(nn.Module):
+class BoW_for_NSP(nn.Module):
 
     def __init__(self, config, TEXT):
-        super(BoWNet, self).__init__()
+        super(BoW_for_NSP, self).__init__()
         self.config = config
 
         self.use_cuda = config.yes_cuda > 0 and torch.cuda.is_available()
@@ -37,6 +37,7 @@ class BoWNet(nn.Module):
         self.batchnorm = nn.BatchNorm1d(self.conc_hidden_size)
         self.dropout = nn.Dropout(p=config.dropout_ln)
 
+        self.req_grad_params = self.get_req_grad_params()
     def forward(self, x):
 
         #premise, premise_len = x.premise[0].shape[1], x.hypothesis[0].shape[1]
@@ -90,12 +91,31 @@ class BoWNet(nn.Module):
         # return softmax(self.linear_out(x), dim=1) # for cross entropy we dont need softmax - is has it embedded
         return self.tanh(self.linear_out(x))
 
+    def get_req_grad_params(self, debug=False):
+        print('#parameters: ', end='')
+        params = list()
+        total_size = 0
+
+        def multiply_iter(p_list):
+            out = 1
+            for _p in p_list:
+                out *= _p
+            return out
+
+        for p in self.parameters():
+            if p.requires_grad:
+                params.append(p)
+                total_size += multiply_iter(p.size())
+            if debug:
+                print(p.requires_grad, p.size())
+        print('{:,}'.format(total_size))
+        return params
 
 
-class SNLI_BoWNet(nn.Module):
+class BoW_for_SNLI(nn.Module):
 
     def __init__(self, config, TEXT):
-        super(SNLI_BoWNet, self).__init__()
+        super(BoW_for_SNLI, self).__init__()
         self.config = config
 
         self.use_cuda = config.yes_cuda > 0 and torch.cuda.is_available()

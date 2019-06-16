@@ -6,17 +6,18 @@ import numpy as np
 from sklearn.metrics import roc_curve, auc
 from sklearn.metrics import confusion_matrix
 from sklearn.utils.multiclass import unique_labels
+import sys
+#import os
 
+from src.bow_models import BoW_for_NSP, BoW_for_SNLI
 
 def get_variable(x):
     """ Converts tensors to cuda, if available. """
     return x.cuda() #if use_cuda else x
 
-
 def get_numpy(x):
     """ Get numpy array for both cuda and not. """
     return x.cpu().data.numpy() #if use_cuda else x.data.numpy()
-
 
 def get_nsp_dataset( args ):
     """ get next_sentence prediction dataset """
@@ -36,12 +37,16 @@ def get_nsp_dataset( args ):
         ('hypothesis', TEXT)  # process it as text
     ]
 
+    #dir_path = os.path.dirname(os.path.realpath(__file__))
+    #cwd  = os.getcwd()
+
     # Load data set:
     train, val, test = data.TabularDataset.splits(
         path=args.data_path, train='train.tsv',
         validation='dev.tsv', test='test.tsv', format='tsv',
         fields=train_val_fields,
         skip_header=True)
+
 
     # Slice data if needed:
     if args.slice_train is not None:
@@ -54,7 +59,40 @@ def get_nsp_dataset( args ):
         test.examples = test.examples[:args.slice_test]
         assert (len(test) == args.slice_test), "Test data set does not equal" + str(args.slice_test) + "!"
 
+    print("Dataset loaded succesfully")
     return train, val, test, TEXT, LABELS
+
+
+def get_requested_model(args, TEXT, device):
+
+    """ In this project we have 2 types of model 2 types of task.
+    All of that results in 4 different model to choose:
+    - bow_nsp
+    - lstm_nsp
+    - bow_snli
+    - lstm_snli
+     This function helps to load the right model accordingly to the
+     arguments from the input"""
+
+    model = None
+
+    if args.model_name == "bow_nsp":
+            model = BoW_for_NSP(args, TEXT).to(device)
+    elif args.model_name == "lstm_nsp":
+            print('lstm_nsp Not ready yet')
+            #model = LSTM_for_NSP(args, TEXT).to(device)
+    elif args.model_name == "bow_snli":
+            model = BoW_for_SNLI(args, TEXT).to(device)
+    elif args.model_name == "lstm_snli":
+            print('lstm_nsp Not ready yet')
+            #model = LSTM_for_SNLI(args, TEXT).to(device)
+    else:
+        print("There is no model type called: ", args.model_type )
+
+    if model is None:
+        sys.exit("Model is None. Aborting script execution... ")
+
+    return model
 
 
 def get_snli_dataset( args ):

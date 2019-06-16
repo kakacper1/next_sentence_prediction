@@ -4,17 +4,19 @@ import pprint
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from mlstm_model import MatchLSTM
+#from src.mlstm_model import MatchLSTM
 from src.utils import *
-
-from torchtext import data, datasets
+from src.lstm_models import LSTM_for_NSP,LSTM_for_SNLI
+from torchtext import data
 from torchtext.vocab import GloVe
 
 # Ref.
 # https://github.com/shuohangwang/SeqMatchSeq/blob/master/main/main.lua
 parser = argparse.ArgumentParser()
+
+parser.add_argument('--task_type', type=str, default="nsp")  # "nli"
 parser.add_argument('--seed', type=int, default=2019)
-parser.add_argument('--data_path', type=str, default='.res/data/train/wiki_swapped_new/')
+parser.add_argument('--data_path', type=str, default='./res/data/train/wiki_swapped_new')
 parser.add_argument('--num_classes', type=int, default=2)
 
 parser.add_argument('--lr', type=float, default=1e-3)
@@ -88,8 +90,8 @@ def evaluate_epoch(device, loader, model, epoch, loss_func, mode):
     start_t = datetime.now()
     with torch.no_grad():
         for batch_idx, ex in enumerate(loader):
-            target = ex[4].to(device)
-            output = model(ex[0], ex[1], ex[2], ex[3])
+            target = ex.label.to(device)
+            output = model(ex.premise[0], ex.premise[1], ex.hypothesis[0], ex.hypothesis[1])
             loss = loss_func(output, target)
             eval_loss += len(output) * loss.item()
             pred = torch.max(output, 1)[1]
@@ -117,12 +119,16 @@ def main():
     torch.manual_seed(args.seed)
     if use_cuda:
         torch.cuda.manual_seed(args.seed)
-    # print yupe of execution
+    # print type of execution
     print('CUDA device_count {0}'.format(torch.cuda.device_count())
           if use_cuda else 'CPU')
 
-    # get next sentence prediction dataset
-    train, val, test, TEXT, LABELS = get_nsp_dataset(args)
+    # to get the right dataset
+    if args.task_type == "nsp":
+        train, val, test, TEXT, LABELS = get_nsp_dataset(args)
+    elif args.task_type == "snli":
+        train, val, test, TEXT, LABELS = get_snli_dataset(args)
+
 
     # create batches:
     train_iter, val_iter, test_iter = data.BucketIterator.splits(
@@ -145,8 +151,7 @@ def main():
           len(test_iter.dataset))
 
 
-
-    model = MatchLSTM(args, TEXT).to(device)
+    model = LSTM_for_NSP(args, TEXT).to(device)
 
     optimizer = optim.Adam(model.req_grad_params, lr=args.lr,
                            betas=(0.9, 0.999), amsgrad=True)

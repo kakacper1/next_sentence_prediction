@@ -4,9 +4,9 @@ import pprint
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from mlstm_model import MatchLSTM
+from src.mlstm_model import MatchLSTM
 
-from torchtext import data, datasets
+from torchtext import data
 from torchtext.vocab import GloVe
 
 # Ref.

@@ -2,7 +2,6 @@ import matplotlib
 import argparse
 from datetime import datetime
 import time
-from src.bow_model import BoWNet, SNLI_BoWNet
 from src.utils import *
 import pprint
 import torch
@@ -13,27 +12,39 @@ import csv
 import torch.nn as nn
 import torch.optim as optim
 
+
 # dataset:
 from torchtext import data, datasets
 from torchtext.vocab import GloVe
 # otherwise impossible to save fig using cluster
 matplotlib.use('Agg')
 
-
+# all of the default arguments may be overwritten from command line
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--seed', type=int, default=20)
+# to pick the right model:
+parser.add_argument('--model_name', type=str, default="bow_snli") # bow_nsp , bow_snli
+
+# pick proper task
+parser.add_argument('--task_type', type=str, default="nsp")  # "nli"
+
+# path to the dataset:
 parser.add_argument('--data_path', type=str, default='./res/data/train/wiki_swapped_new')
 
+# 0 no seed, otherwise requested seed is applied.
+parser.add_argument('--seed', type=int, default=20)
 
+# if the dataset is too big
 parser.add_argument('--slice_train', type=int, default=None)
 parser.add_argument('--slice_val', type=int, default=None)
 parser.add_argument('--slice_test', type=int, default=None)
 
+# model settings
 parser.add_argument('--lr', type=float, default=0.000015)
 parser.add_argument('--lr_decay', type=float, default=0.95)
 parser.add_argument('--grad_max_norm', type=float, default=0.)
 parser.add_argument('--weight_decay', type=float, default=1e-4)
+
 
 parser.add_argument('--embedding_dim', type=int, default=300)
 parser.add_argument('--hidden_size', type=int, default=300)
@@ -45,14 +56,17 @@ parser.add_argument('--batch_size', type=int, default=512)
 parser.add_argument('--max_epochs_num', type=int, default=120)
 parser.add_argument('--patience', type=int, default=4)
 
+
+# execution setttings:
 #parser.add_argument('--log_interval', type=int, default=200)
 parser.add_argument('--yes_cuda', type=int, default=1)
 parser.add_argument('--num_workers', type=int, default=4)
 
-parser.add_argument('--model_name', type=str, default="batch_size_512")
-parser.add_argument('--task_type', type=str, default="nsp")  # "nli"
+
 
 parser.add_argument('--save_model', type=bool, default=False)
+
+
 parser.add_argument('--save_args', type=bool, default=False)
 
 #todo read parameters from csv file
@@ -159,15 +173,19 @@ def main():
         torch.cuda.manual_seed(args.seed)
         print('CUDA device_count {0}'.format(torch.cuda.device_count()) if use_cuda else 'CPU')
 
-    if args.task_type ==  "nsp" :
+    # to get the right dataset
+    if args.task_type == "nsp":
         train, val, test, TEXT, LABELS = get_nsp_dataset(args)
-    else:
+    elif args.task_type == "snli":
         train, val, test, TEXT, LABELS = get_snli_dataset(args)
-    # create batches:
 
+    # create batches:
     train_iter, val_iter, test_iter = data.BucketIterator.splits(
         (train, val, test), batch_sizes=(args.batch_size, args.batch_size, args.batch_size),
         sort_key=lambda x: len(x.premise), device=device, repeat=False)
+
+    print('#examples', len(train_iter.dataset), len(val_iter.dataset),
+          len(test_iter.dataset))
 
     TEXT.build_vocab(train, vectors=GloVe(name='840B', dim=args.embedding_dim))
     LABELS.build_vocab(train)
@@ -177,10 +195,7 @@ def main():
     print("Tokenize hypothesis:\n", batch.hypothesis)
     print("Entailment labels:\n", batch.label)
 
-    if args.task_type == "nsp" :
-        model = BoWNet(args, TEXT).to(device)
-    else:
-        model = SNLI_BoWNet(args, TEXT).to(device)
+    model = get_requested_model(args,TEXT, device)
 
     print(model)
 
