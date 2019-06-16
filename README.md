@@ -15,17 +15,21 @@
 # Running the code:
 
 - to run SNLI task with BoW model:
-main.py --task_type snli --model_name bow_snli --dropout_ln 0.2 --dropout_emb 0.2 --lr 0.0005
-
+```
+$ main.py --task_type snli --model_name bow_snli --dropout_ln 0.2 --dropout_emb 0.2 --lr 0.0005
+```
 - to run NSP task with BoW model:
-main.py --task_type nsp --model_name bow_nsp --num_classes 2 --slice_train 50000 --slice_val 1000 --slice_test 1000
-
+```
+$ main.py --task_type nsp --model_name bow_nsp --slice_train 50000 --slice_val 1000 --slice_test 1000
+```
 - to run SNLI task with LSTM model:
-main.py --task_type snli --model_name lstm_snli --dropout_ln 0.2 --dropout_emb 0.2 --lr 0.0005
-
+```
+$ main.py --task_type snli --model_name lstm_snli --dropout_ln 0.2 --dropout_emb 0.2 --lr 0.0005
+```
 - to run NSP task with LSTM model:
-main.py --task_type nsp --model_name lstm_nsp --dropout_ln 0.2 --dropout_emb 0.2 --lr 0.0005
-
+```
+$ main.py --task_type nsp --model_name lstm_nsp --dropout_ln 0.2 --dropout_emb 0.2 --lr 0.0005
+```
 # Using DTU server:
 
 1. Log in to the DTU server and Openxterm-LSF10-login-name. Then pick the GPU you would like to use:
