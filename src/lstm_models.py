@@ -182,7 +182,7 @@ class LSTM_for_SNLI(nn.Module):
 
         #print('word2vec', word2vec.shape)
         #assert len(word2vec[0]) == config.embedding_dim
-        self.word_embed = nn.Embedding(TEXT.vocab.vectors.size()[0], config.embedding_dim, padding_idx=0)
+        self.word_embed = nn.Embedding(TEXT.vocab.vectors.size()[0], config.embedding_dim, padding_idx=1)
         self.word_embed.weight.data.copy_(TEXT.vocab.vectors)
         self.word_embed.weight.requires_grad = False
 
@@ -190,19 +190,19 @@ class LSTM_for_SNLI(nn.Module):
         nn.init.uniform_(self.w_e)
 
         # initialize all linear
-        self.linear_1 = nn.Linear(in_features=config.hidden_size*2,
-                             out_features=config.hidden_size*2, bias=False)
-        self.linear_2 = nn.Linear(in_features=config.hidden_size*2,
-                             out_features=config.hidden_size*2, bias=False)
-        self.linear_3 = nn.Linear(in_features=config.hidden_size*2,
-                             out_features=config.hidden_size*2, bias=False)
-        self.linear_out = nn.Linear(in_features=config.hidden_size*2,
+        self.linear_1 = nn.Linear(in_features=config.hidden_size*4,
+                             out_features=config.hidden_size*4, bias=False)
+        self.linear_2 = nn.Linear(in_features=config.hidden_size*4,
+                             out_features=config.hidden_size*4, bias=False)
+        self.linear_3 = nn.Linear(in_features=config.hidden_size*4,
+                             out_features=config.hidden_size*4, bias=False)
+        self.linear_out = nn.Linear(in_features=config.hidden_size*4,
                             out_features=config.num_classes)
 
         self.init_linears()
 
-        self.lstm_prem = nn.LSTM(config.embedding_dim, config.hidden_size)
-        self.lstm_hypo = nn.LSTM(config.embedding_dim, config.hidden_size)
+        self.lstm_prem = nn.LSTM(config.embedding_dim, config.hidden_size, bidirectional=True)
+        self.lstm_hypo = nn.LSTM(config.embedding_dim, config.hidden_size, bidirectional=True)
 
         if config.dropout_fc > 0.:
             self.dropout_fc = nn.Dropout(p=config.dropout_fc)
@@ -266,8 +266,8 @@ class LSTM_for_SNLI(nn.Module):
             h_t[hl:, batch_idx] *= 0.
 
         # reshape LSTM outputs:
-        pre_hidd = pre_hidd.view(iter_batch_size, self.config.hidden_size)
-        hyp_hidd = hyp_hidd.view(iter_batch_size, self.config.hidden_size)
+        pre_hidd = pre_hidd.view(iter_batch_size, self.config.hidden_size*2)
+        hyp_hidd = hyp_hidd.view(iter_batch_size, self.config.hidden_size*2)
 
         # concatenate:
         all_hidden = torch.cat((pre_hidd, hyp_hidd), 1)
