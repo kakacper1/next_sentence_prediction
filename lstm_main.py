@@ -138,20 +138,12 @@ def main():
     TEXT.build_vocab(train, vectors=GloVe(name='840B', dim=args.embedding_dim))
     LABELS.build_vocab(train)
 
-    #with open(args.data_path, 'rb') as f:
-    #    snli_dataset = pickle.load(f)
-
-
-    #train_loader, valid_loader, test_loader = \
-    #    snli_dataset.get_dataloaders(batch_size=args.batch_size,
-    #                               num_workers=args.num_workers,
-    #                                pin_memory=use_cuda)
 
     print('#examples', len(train_iter.dataset), len(val_iter.dataset),
           len(test_iter.dataset))
 
 
-    model = LSTM_for_NSP(args, TEXT).to(device)
+    model = LSTM_for_SNLI(args, TEXT).to(device)
 
     optimizer = optim.Adam(model.req_grad_params, lr=args.lr,
                            betas=(0.9, 0.999), amsgrad=True)

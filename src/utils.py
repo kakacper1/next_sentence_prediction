@@ -59,7 +59,7 @@ def get_nsp_dataset( args ):
         test.examples = test.examples[:args.slice_test]
         assert (len(test) == args.slice_test), "Test data set does not equal" + str(args.slice_test) + "!"
 
-    print("Dataset loaded succesfully")
+    print("NSP Dataset loaded succesfully")
     return train, val, test, TEXT, LABELS
 
 
@@ -114,7 +114,7 @@ def get_snli_dataset( args ):
         test.examples = test.examples[:args.slice_test]
         assert (len(test) == args.slice_test), "Test data set does not equal" + str(args.slice_test) + "!"
 
-
+    print("SNLI Dataset loaded succesfully")
     return train, val, test, TEXT, LABELS
 
 

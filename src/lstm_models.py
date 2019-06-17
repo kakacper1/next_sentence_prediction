@@ -64,7 +64,7 @@ class LSTM_for_NSP(nn.Module):
             premise = self.word_embed(premise)
         packed_premise = pack_padded_sequence(premise, premise_len)
         # (max_len, batch_size, hidden_size)
-        h_s, (_, _) = self.lstm_prem(packed_premise)
+        h_s, (pre_hidd, pre_cell) = self.lstm_prem(packed_premise)
         h_s, _ = pad_packed_sequence(h_s)
         h_s = h_s[:, p_idx_unsort]
         premise_len = premise_len[p_idx_unsort]
@@ -87,13 +87,13 @@ class LSTM_for_NSP(nn.Module):
             hypothesis = self.word_embed(hypothesis)
         packed_hypothesis = pack_padded_sequence(hypothesis, hypothesis_len)
         # (max_len, batch_size, hidden_size)
-        h_t, (_, _) = self.lstm_hypo(packed_hypothesis)
+        h_t, (hyp_hidd, hyp_cell) = self.lstm_hypo(packed_hypothesis)
         h_t, _ = pad_packed_sequence(h_t)
         h_t = h_t[:, h_idx_unsort]
         hypothesis_len = hypothesis_len[h_idx_unsort]
         for batch_idx, hl in enumerate(hypothesis_len):
             h_t[hl:, batch_idx] *= 0.
-
+            # (max_len, batch_size, hidden_size)
         # matchLSTM
         batch_size = premise.size(1)
         h_m_k = torch.zeros((batch_size, self.config.hidden_size),
@@ -189,35 +189,38 @@ class LSTM_for_SNLI(nn.Module):
         self.w_e = nn.Parameter(torch.Tensor(config.hidden_size))
         nn.init.uniform_(self.w_e)
 
-        self.w_s = nn.Linear(in_features=config.hidden_size,
-                             out_features=config.hidden_size, bias=False)
-        self.w_t = nn.Linear(in_features=config.hidden_size,
-                             out_features=config.hidden_size, bias=False)
-        self.w_m = nn.Linear(in_features=config.hidden_size,
-                             out_features=config.hidden_size, bias=False)
-        self.fc = nn.Linear(in_features=config.hidden_size,
+        # initialize all linear
+        self.linear_1 = nn.Linear(in_features=config.hidden_size*2,
+                             out_features=config.hidden_size*2, bias=False)
+        self.linear_2 = nn.Linear(in_features=config.hidden_size*2,
+                             out_features=config.hidden_size*2, bias=False)
+        self.linear_3 = nn.Linear(in_features=config.hidden_size*2,
+                             out_features=config.hidden_size*2, bias=False)
+        self.linear_out = nn.Linear(in_features=config.hidden_size*2,
                             out_features=config.num_classes)
+
         self.init_linears()
 
         self.lstm_prem = nn.LSTM(config.embedding_dim, config.hidden_size)
         self.lstm_hypo = nn.LSTM(config.embedding_dim, config.hidden_size)
-        self.lstm_match = nn.LSTMCell(2 * config.hidden_size,
-                                      config.hidden_size)
 
         if config.dropout_fc > 0.:
             self.dropout_fc = nn.Dropout(p=config.dropout_fc)
 
         self.req_grad_params = self.get_req_grad_params()
 
+        self.relu = nn.ReLU()
+
     def init_linears(self):
-        nn.init.xavier_uniform_(self.w_s.weight)
-        nn.init.xavier_uniform_(self.w_t.weight)
-        nn.init.xavier_uniform_(self.w_m.weight)
-        nn.init.xavier_uniform_(self.fc.weight)
-        nn.init.uniform_(self.fc.bias)
+        nn.init.xavier_uniform_(self.linear_1.weight)
+        nn.init.xavier_uniform_(self.linear_1.weight)
+        nn.init.xavier_uniform_(self.linear_1.weight)
+        nn.init.xavier_uniform_(self.linear_out.weight)
+        nn.init.uniform_(self.linear_out.bias)
 
     def forward(self, premise, premise_len, hypothesis, hypothesis_len):
         # premise
+        iter_batch_size = len(premise_len)
         premise = premise.to(self.device)
         prem_max_len = premise.size(0)
         premise_len, p_idxes = premise_len.sort(dim=0, descending=True)
@@ -232,7 +235,7 @@ class LSTM_for_SNLI(nn.Module):
             premise = self.word_embed(premise)
         packed_premise = pack_padded_sequence(premise, premise_len)
         # (max_len, batch_size, hidden_size)
-        h_s, (_, _) = self.lstm_prem(packed_premise)
+        h_s, (pre_hidd, pre_cell) = self.lstm_prem(packed_premise)
         h_s, _ = pad_packed_sequence(h_s)
         h_s = h_s[:, p_idx_unsort]
         premise_len = premise_len[p_idx_unsort]
@@ -255,69 +258,37 @@ class LSTM_for_SNLI(nn.Module):
             hypothesis = self.word_embed(hypothesis)
         packed_hypothesis = pack_padded_sequence(hypothesis, hypothesis_len)
         # (max_len, batch_size, hidden_size)
-        h_t, (_, _) = self.lstm_hypo(packed_hypothesis)
+        h_t, (hyp_hidd, hyp_cell) = self.lstm_hypo(packed_hypothesis)
         h_t, _ = pad_packed_sequence(h_t)
         h_t = h_t[:, h_idx_unsort]
         hypothesis_len = hypothesis_len[h_idx_unsort]
         for batch_idx, hl in enumerate(hypothesis_len):
             h_t[hl:, batch_idx] *= 0.
 
-        # matchLSTM
-        batch_size = premise.size(1)
-        h_m_k = torch.zeros((batch_size, self.config.hidden_size),
-                            device=self.device)
-        c_m_k = torch.zeros((batch_size, self.config.hidden_size),
-                            device=self.device)
-        h_last = torch.zeros((batch_size, self.config.hidden_size),
-                             device=self.device)
+        # reshape LSTM outputs:
+        pre_hidd = pre_hidd.view(iter_batch_size, self.config.hidden_size)
+        hyp_hidd = hyp_hidd.view(iter_batch_size, self.config.hidden_size)
 
-        for k in range(hypothesis_max_len):
-            h_t_k = h_t[k]
+        # concatenate:
+        all_hidden = torch.cat((pre_hidd, hyp_hidd), 1)
 
-            # Equation (6)
-            # (prem_max_len, batch_size)
-            e_kj = torch.zeros((prem_max_len, batch_size), device=self.device)
-            w_e_expand = \
-                self.w_e.expand(batch_size, self.config.hidden_size)\
-                    .view(batch_size, 1, self.config.hidden_size)
-            for j in range(prem_max_len):
-                s_t_m = \
-                    torch.tanh(self.w_s(h_s[j]) + self.w_t(h_t_k) +
-                               self.w_m(h_m_k))\
-                    .view(batch_size, self.config.hidden_size, 1)
+        all_hidden = self.relu(self.linear_1(all_hidden))  # ([512, 600]) ~ (batch_size, linear_1_out)
+        #x = self.dropout(x)
 
-                # batch-wise dot product
-                # https://discuss.pytorch.org/t/dot-product-batch-wise/9746
-                e_kj[j] = torch.bmm(w_e_expand, s_t_m).view(batch_size)
+        all_hidden = self.relu(self.linear_2(all_hidden))  # ([512, 600]) ~ (batch_size, linear_2_out)
+        #x = self.dropout(x)
 
-            # Equation (3)
-            # (prem_max_len, batch_size)
-            alpha_kj = F.softmax(e_kj, dim=0)
+        all_hidden = self.relu(self.linear_3(all_hidden))  # ([512, 600]) ~ (batch_size, linear_3_out)
+        #x = self.dropout(x)
 
-            # Equation (2)
-            # (batch_size, hidden_size)
-            a_k = torch.bmm(alpha_kj.t().view(batch_size, 1, prem_max_len),
-                            h_s.permute(1, 0, 2)).view(batch_size,
-                                                       self.config.hidden_size)
+        # return softmax(self.linear_out(x), dim=1) # for cross entropy we dont need softmax - is has it embedded
+        return self.linear_out(all_hidden)
+        # self.tanh(self.linear_out(x))
 
-            # Equation (7)
-            # (batch_size, 2 * hidden_size)
-            m_k = torch.cat((a_k, h_t_k), 1)
 
-            # Equation (8)
-            # (batch_size, hidden_size)
-            h_m_k, c_m_k = self.lstm_match(m_k, (h_m_k, c_m_k))
 
-            # handle variable length sequences: hypothesis
-            # (batch_size)
-            for batch_idx, hl in enumerate(hypothesis_len):
-                if k + 1 == hl:
-                    h_last[batch_idx] = h_m_k[batch_idx]
 
-        if self.config.dropout_fc > 0:
-            h_last = self.dropout_fc(h_last)
-
-        return self.fc(h_last)
+        return self.fc(h_t)
 
     def get_req_grad_params(self, debug=False):
         print('#parameters: ', end='')
