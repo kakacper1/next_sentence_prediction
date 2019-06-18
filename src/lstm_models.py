@@ -221,6 +221,7 @@ class LSTM_for_SNLI(nn.Module):
     def forward(self, premise, premise_len, hypothesis, hypothesis_len):
         # premise
         iter_batch_size = len(premise_len)
+
         premise = premise.to(self.device)
         prem_max_len = premise.size(0)
         premise_len, p_idxes = premise_len.sort(dim=0, descending=True)
@@ -233,10 +234,14 @@ class LSTM_for_SNLI(nn.Module):
                                 training=self.training)
         else:
             premise = self.word_embed(premise)
+
         packed_premise = pack_padded_sequence(premise, premise_len)
         # (max_len, batch_size, hidden_size)
         h_s, (pre_hidd, pre_cell) = self.lstm_prem(packed_premise)
         h_s, _ = pad_packed_sequence(h_s)
+
+        pre_hidd_unsorted = pre_hidd[:, p_idx_unsort]
+
         h_s = h_s[:, p_idx_unsort]
         premise_len = premise_len[p_idx_unsort]
         # make it 0
@@ -259,14 +264,18 @@ class LSTM_for_SNLI(nn.Module):
         packed_hypothesis = pack_padded_sequence(hypothesis, hypothesis_len)
         # (max_len, batch_size, hidden_size)
         h_t, (hyp_hidd, hyp_cell) = self.lstm_hypo(packed_hypothesis)
-        h_t, _ = pad_packed_sequence(h_t)
+        h_t, a = pad_packed_sequence(h_t)
+        #hyp_hidd, b =pad_packed_sequence(hyp_hidd)
+        hyp_hidd_unsorted =hyp_hidd[:, h_idx_unsort]
+
         h_t = h_t[:, h_idx_unsort]
+
         hypothesis_len = hypothesis_len[h_idx_unsort]
-        for batch_idx, hl in enumerate(hypothesis_len):
-            h_t[hl:, batch_idx] *= 0.
+        #for batch_idx, hl in enumerate(hypothesis_len):
+        #   h_t[hl:, batch_idx] *= 0.
 
 
-        # 1 seperate both forward and backward pass:
+        # PREMISE: 1 seperate both forward and backward pass:
         p_output = h_s.view(-1, iter_batch_size, self.config.hidden_size, 2)  # (seq_len, batch_size, hidden_size, num_directions bi or uni direction)
         p_output_forward = p_output[:, :, :, 0]  # (seq_len, batch_size, hidden_size)
         p_output_backward = p_output[:, :, :, 1]  # (seq_len, batch_size, hidden_size)
@@ -279,8 +288,12 @@ class LSTM_for_SNLI(nn.Module):
 
         p_last_forward = torch.gather(p_output_forward, 0, h_lengths - 1).squeeze(0) # (batch_size, hidden_dim)
         p_last_backward = p_output_backward[0, :, :]                                  #(batch_size, hidden_dim)
-        #-----------------------------------------------------------------
-        # 1 seperate both forward and backward pass:
+
+        new_p_last_forward = pre_hidd_unsorted[0, :, :]
+        new_p_last_backward = pre_hidd_unsorted[1, :, :]
+
+
+        # HYPOTHESIS: seperate both forward and backward pass:
         h_output = h_t.view(-1, iter_batch_size, self.config.hidden_size, 2)  # (seq_len, batch_size, hidden_size, num_directions bi or uni direction)
         h_output_forward = h_output[:, :, :, 0]  # (seq_len, batch_size, hidden_size)
         h_output_backward = h_output[:, :, :, 1]  # (seq_len, batch_size, hidden_size)
@@ -294,22 +307,22 @@ class LSTM_for_SNLI(nn.Module):
         h_last_forward = torch.gather(h_output_forward, 0, h_lengths - 1).squeeze(0) # (batch_size, hidden_dim)
         h_last_backward = h_output_backward[0, :, :]                                  #(batch_size, hidden_dim)
 
-        # reshape LSTM outputs:
-        #pre_hidd = pre_hidd.view(iter_batch_size, self.config.hidden_size)
-        #hyp_hidd = hyp_hidd.view(iter_batch_size, self.config.hidden_size)
+        new_h_last_forward = hyp_hidd_unsorted[0, :, :]
+        new_h_last_backward = hyp_hidd_unsorted[1, :, :]
 
         # concatenate:
-        #all_hidden = torch.cat((pre_hidd, hyp_hidd), 1)
-        all_last_seq_out = torch.cat((p_last_forward, p_last_backward, h_last_forward, h_last_backward), 1)
+        # all_hidden = torch.cat((pre_hidd, hyp_hidd), 1)
+        #all_last_seq_out = torch.cat((p_last_forward, p_last_backward, h_last_forward, h_last_backward), 1)
+        all_last_seq_out = torch.cat((new_p_last_forward, new_p_last_backward, new_h_last_forward, new_h_last_backward), 1)
 
         all_last_seq_out = self.relu(self.linear_1(all_last_seq_out))  # ([512, 600]) ~ (batch_size, linear_1_out)
-        #x = self.dropout(x)
+        # x = self.dropout(x)
 
         all_last_seq_out = self.relu(self.linear_2(all_last_seq_out))  # ([512, 600]) ~ (batch_size, linear_2_out)
-        #x = self.dropout(x)
+        # x = self.dropout(x)
 
         all_last_seq_out = self.relu(self.linear_3(all_last_seq_out))  # ([512, 600]) ~ (batch_size, linear_3_out)
-        #x = self.dropout(x)
+        # x = self.dropout(x)
 
         # return softmax(self.linear_out(x), dim=1) # for cross entropy we dont need softmax - is has it embedded
         return self.linear_out(all_last_seq_out)
@@ -318,7 +331,7 @@ class LSTM_for_SNLI(nn.Module):
 
 
 
-        return self.fc(h_t)
+        #return self.fc(h_t)
 
     def get_req_grad_params(self, debug=False):
         print('#parameters: ', end='')

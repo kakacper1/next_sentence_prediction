@@ -36,7 +36,7 @@ parser.add_argument('--dropout_emb', type=float, default=0.3)
 parser.add_argument('--batch_size', type=int, default=30)
 parser.add_argument('--epochs', type=int, default=20)
 
-parser.add_argument('--log_interval', type=int, default=100)
+parser.add_argument('--log_interval', type=int, default=10000)
 parser.add_argument('--yes_cuda', type=int, default=1)
 parser.add_argument('--num_workers', type=int, default=4)
 
@@ -158,7 +158,7 @@ def main():
                     args)
 
         valid_loss, valid_acc = \
-            evaluate_epoch(device, train_iter, model, epoch, loss_func,
+            evaluate_epoch(device, val_iter, model, epoch, loss_func,
                            'Valid')
         if valid_loss < best_loss:
             best_loss = valid_loss
