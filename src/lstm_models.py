@@ -190,19 +190,19 @@ class LSTM_for_SNLI(nn.Module):
         nn.init.uniform_(self.w_e)
 
         # initialize all linear
-        self.linear_1 = nn.Linear(in_features=config.hidden_size*2,
-                             out_features=config.hidden_size*2, bias=False)
-        self.linear_2 = nn.Linear(in_features=config.hidden_size*2,
-                             out_features=config.hidden_size*2, bias=False)
-        self.linear_3 = nn.Linear(in_features=config.hidden_size*2,
-                             out_features=config.hidden_size*2, bias=False)
-        self.linear_out = nn.Linear(in_features=config.hidden_size*2,
+        self.linear_1 = nn.Linear(in_features=config.hidden_size*4,
+                             out_features=config.hidden_size*4, bias=False)
+        self.linear_2 = nn.Linear(in_features=config.hidden_size*4,
+                             out_features=config.hidden_size*4, bias=False)
+        self.linear_3 = nn.Linear(in_features=config.hidden_size*4,
+                             out_features=config.hidden_size*4, bias=False)
+        self.linear_out = nn.Linear(in_features=config.hidden_size*4,
                             out_features=config.num_classes)
 
         self.init_linears()
 
-        self.lstm_prem = nn.LSTM(config.embedding_dim, config.hidden_size, bidirectional=False)
-        self.lstm_hypo = nn.LSTM(config.embedding_dim, config.hidden_size, bidirectional=False)
+        self.lstm_prem = nn.LSTM(config.embedding_dim, config.hidden_size, bidirectional=True)
+        self.lstm_hypo = nn.LSTM(config.embedding_dim, config.hidden_size, bidirectional=True)
 
         if config.dropout_fc > 0.:
             self.dropout_fc = nn.Dropout(p=config.dropout_fc)
@@ -265,24 +265,54 @@ class LSTM_for_SNLI(nn.Module):
         for batch_idx, hl in enumerate(hypothesis_len):
             h_t[hl:, batch_idx] *= 0.
 
+
+        # 1 seperate both forward and backward pass:
+        p_output = h_s.view(-1, iter_batch_size, self.config.hidden_size, 2)  # (seq_len, batch_size, hidden_size, num_directions bi or uni direction)
+        p_output_forward = p_output[:, :, :, 0]  # (seq_len, batch_size, hidden_size)
+        p_output_backward = p_output[:, :, :, 1]  # (seq_len, batch_size, hidden_size)
+
+        # 2 then  we unsqueeze seqlengths two times so it has the same number of dimensions as output_forward
+        p_lengths = premise_len.unsqueeze(0).unsqueeze(2) # (batch_size) -> (1, batch_size, 1)
+
+        # 3 Then we expand it accordingly
+        h_lengths = p_lengths.expand((1, -1, p_output_forward.size(2))) # (1, batch_size, 1) -> (1, batch_size, hidden_size)
+
+        p_last_forward = torch.gather(p_output_forward, 0, h_lengths - 1).squeeze(0) # (batch_size, hidden_dim)
+        p_last_backward = p_output_backward[0, :, :]                                  #(batch_size, hidden_dim)
+        #-----------------------------------------------------------------
+        # 1 seperate both forward and backward pass:
+        h_output = h_t.view(-1, iter_batch_size, self.config.hidden_size, 2)  # (seq_len, batch_size, hidden_size, num_directions bi or uni direction)
+        h_output_forward = h_output[:, :, :, 0]  # (seq_len, batch_size, hidden_size)
+        h_output_backward = h_output[:, :, :, 1]  # (seq_len, batch_size, hidden_size)
+
+        # 2 then  we unsqueeze seqlengths two times so it has the same number of dimensions as output_forward
+        h_lengths = hypothesis_len.unsqueeze(0).unsqueeze(2) # (batch_size) -> (1, batch_size, 1)
+
+        # 3 Then we expand it accordingly
+        h_lengths = h_lengths.expand((1, -1, h_output_forward.size(2))) # (1, batch_size, 1) -> (1, batch_size, hidden_size)
+
+        h_last_forward = torch.gather(h_output_forward, 0, h_lengths - 1).squeeze(0) # (batch_size, hidden_dim)
+        h_last_backward = h_output_backward[0, :, :]                                  #(batch_size, hidden_dim)
+
         # reshape LSTM outputs:
-        pre_hidd = pre_hidd.view(iter_batch_size, self.config.hidden_size)
-        hyp_hidd = hyp_hidd.view(iter_batch_size, self.config.hidden_size)
+        #pre_hidd = pre_hidd.view(iter_batch_size, self.config.hidden_size)
+        #hyp_hidd = hyp_hidd.view(iter_batch_size, self.config.hidden_size)
 
         # concatenate:
-        all_hidden = torch.cat((pre_hidd, hyp_hidd), 1)
+        #all_hidden = torch.cat((pre_hidd, hyp_hidd), 1)
+        all_last_seq_out = torch.cat((p_last_forward, p_last_backward, h_last_forward, h_last_backward), 1)
 
-        all_hidden = self.relu(self.linear_1(all_hidden))  # ([512, 600]) ~ (batch_size, linear_1_out)
+        all_last_seq_out = self.relu(self.linear_1(all_last_seq_out))  # ([512, 600]) ~ (batch_size, linear_1_out)
         #x = self.dropout(x)
 
-        all_hidden = self.relu(self.linear_2(all_hidden))  # ([512, 600]) ~ (batch_size, linear_2_out)
+        all_last_seq_out = self.relu(self.linear_2(all_last_seq_out))  # ([512, 600]) ~ (batch_size, linear_2_out)
         #x = self.dropout(x)
 
-        all_hidden = self.relu(self.linear_3(all_hidden))  # ([512, 600]) ~ (batch_size, linear_3_out)
+        all_last_seq_out = self.relu(self.linear_3(all_last_seq_out))  # ([512, 600]) ~ (batch_size, linear_3_out)
         #x = self.dropout(x)
 
         # return softmax(self.linear_out(x), dim=1) # for cross entropy we dont need softmax - is has it embedded
-        return self.linear_out(all_hidden)
+        return self.linear_out(all_last_seq_out)
         # self.tanh(self.linear_out(x))
 
 

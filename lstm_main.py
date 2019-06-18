@@ -24,7 +24,7 @@ parser.add_argument('--lr_decay', type=float, default=0.95)
 parser.add_argument('--grad_max_norm', type=float, default=0.)  #
 
 parser.add_argument('--embedding_dim', type=int, default=300)
-parser.add_argument('--hidden_size', type=int, default=300)
+parser.add_argument('--hidden_size', type=int, default=150)
 
 parser.add_argument('--slice_train', type=int, default=None)
 parser.add_argument('--slice_val', type=int, default=None)
