@@ -186,8 +186,8 @@ class LSTM_for_SNLI(nn.Module):
         self.word_embed.weight.data.copy_(TEXT.vocab.vectors)
         self.word_embed.weight.requires_grad = False
 
-        self.w_e = nn.Parameter(torch.Tensor(config.hidden_size))
-        nn.init.uniform_(self.w_e)
+        self.linear_0_pre = nn.Linear(in_features=config.hidden_size*2, out_features=config.hidden_size*2, bias=True)
+        self.linear_0_hyp = nn.Linear(in_features=config.hidden_size*2, out_features=config.hidden_size*2, bias=True)
 
         # initialize all linear
         self.linear_1 = nn.Linear(in_features=config.hidden_size*4,
@@ -212,11 +212,17 @@ class LSTM_for_SNLI(nn.Module):
         self.relu = nn.ReLU()
 
     def init_linears(self):
+
         nn.init.xavier_uniform_(self.linear_1.weight)
         nn.init.xavier_uniform_(self.linear_2.weight)
         nn.init.xavier_uniform_(self.linear_3.weight)
         nn.init.xavier_uniform_(self.linear_out.weight)
         nn.init.uniform_(self.linear_out.bias)
+
+        nn.init.xavier_uniform_(self.linear_0_pre.weight)
+        nn.init.xavier_uniform_(self.linear_0_hyp.weight)
+        nn.init.uniform_(self.linear_0_pre.bias)
+        nn.init.uniform_(self.linear_0_hyp.bias)
 
     def forward(self, premise, premise_len, hypothesis, hypothesis_len):
         # premise
@@ -234,6 +240,9 @@ class LSTM_for_SNLI(nn.Module):
                                 training=self.training)
         else:
             premise = self.word_embed(premise)
+
+        # Translation
+        premise = self.linear_0_pre(premise)
 
         packed_premise = pack_padded_sequence(premise, premise_len)
         # (max_len, batch_size, hidden_size)
@@ -261,6 +270,11 @@ class LSTM_for_SNLI(nn.Module):
                                    training=self.training)
         else:
             hypothesis = self.word_embed(hypothesis)
+
+        # Translation
+        hypothesis = self.linear_0_pre(hypothesis)
+
+
         packed_hypothesis = pack_padded_sequence(hypothesis, hypothesis_len)
         # (max_len, batch_size, hidden_size)
         h_t, (hyp_hidd, hyp_cell) = self.lstm_hypo(packed_hypothesis)
@@ -275,37 +289,37 @@ class LSTM_for_SNLI(nn.Module):
         #   h_t[hl:, batch_idx] *= 0.
 
 
-        # PREMISE: 1 seperate both forward and backward pass:
-        p_output = h_s.view(-1, iter_batch_size, self.config.hidden_size, 2)  # (seq_len, batch_size, hidden_size, num_directions bi or uni direction)
-        p_output_forward = p_output[:, :, :, 0]  # (seq_len, batch_size, hidden_size)
-        p_output_backward = p_output[:, :, :, 1]  # (seq_len, batch_size, hidden_size)
-
-        # 2 then  we unsqueeze seqlengths two times so it has the same number of dimensions as output_forward
-        p_lengths = premise_len.unsqueeze(0).unsqueeze(2) # (batch_size) -> (1, batch_size, 1)
-
-        # 3 Then we expand it accordingly
-        h_lengths = p_lengths.expand((1, -1, p_output_forward.size(2))) # (1, batch_size, 1) -> (1, batch_size, hidden_size)
-
-        p_last_forward = torch.gather(p_output_forward, 0, h_lengths - 1).squeeze(0) # (batch_size, hidden_dim)
-        p_last_backward = p_output_backward[0, :, :]                                  #(batch_size, hidden_dim)
+       # # PREMISE: 1 seperate both forward and backward pass:
+       # p_output = h_s.view(-1, iter_batch_size, self.config.hidden_size, 2)  # (seq_len, batch_size, hidden_size, num_directions bi or uni direction)
+       # p_output_forward = p_output[:, :, :, 0]  # (seq_len, batch_size, hidden_size)
+       # p_output_backward = p_output[:, :, :, 1]  # (seq_len, batch_size, hidden_size)
+#
+       # # 2 then  we unsqueeze seqlengths two times so it has the same number of dimensions as output_forward
+       # p_lengths = premise_len.unsqueeze(0).unsqueeze(2) # (batch_size) -> (1, batch_size, 1)
+#
+       # # 3 Then we expand it accordingly
+       # h_lengths = p_lengths.expand((1, -1, p_output_forward.size(2))) # (1, batch_size, 1) -> (1, batch_size, hidden_size)
+#
+       # p_last_forward = torch.gather(p_output_forward, 0, h_lengths - 1).squeeze(0) # (batch_size, hidden_dim)
+       # p_last_backward = p_output_backward[0, :, :]                                  #(batch_size, hidden_dim)
 
         new_p_last_forward = pre_hidd_unsorted[0, :, :]
         new_p_last_backward = pre_hidd_unsorted[1, :, :]
 
 
-        # HYPOTHESIS: seperate both forward and backward pass:
-        h_output = h_t.view(-1, iter_batch_size, self.config.hidden_size, 2)  # (seq_len, batch_size, hidden_size, num_directions bi or uni direction)
-        h_output_forward = h_output[:, :, :, 0]  # (seq_len, batch_size, hidden_size)
-        h_output_backward = h_output[:, :, :, 1]  # (seq_len, batch_size, hidden_size)
+     # # HYPOTHESIS: seperate both forward and backward pass:
+     # h_output = h_t.view(-1, iter_batch_size, self.config.hidden_size, 2)  # (seq_len, batch_size, hidden_size, num_directions bi or uni direction)
+     # h_output_forward = h_output[:, :, :, 0]  # (seq_len, batch_size, hidden_size)
+     # h_output_backward = h_output[:, :, :, 1]  # (seq_len, batch_size, hidden_size)
 
-        # 2 then  we unsqueeze seqlengths two times so it has the same number of dimensions as output_forward
-        h_lengths = hypothesis_len.unsqueeze(0).unsqueeze(2) # (batch_size) -> (1, batch_size, 1)
+     # # 2 then  we unsqueeze seqlengths two times so it has the same number of dimensions as output_forward
+     # h_lengths = hypothesis_len.unsqueeze(0).unsqueeze(2) # (batch_size) -> (1, batch_size, 1)
 
-        # 3 Then we expand it accordingly
-        h_lengths = h_lengths.expand((1, -1, h_output_forward.size(2))) # (1, batch_size, 1) -> (1, batch_size, hidden_size)
+     # # 3 Then we expand it accordingly
+     # h_lengths = h_lengths.expand((1, -1, h_output_forward.size(2))) # (1, batch_size, 1) -> (1, batch_size, hidden_size)
 
-        h_last_forward = torch.gather(h_output_forward, 0, h_lengths - 1).squeeze(0) # (batch_size, hidden_dim)
-        h_last_backward = h_output_backward[0, :, :]                                  #(batch_size, hidden_dim)
+     # h_last_forward = torch.gather(h_output_forward, 0, h_lengths - 1).squeeze(0) # (batch_size, hidden_dim)
+     # h_last_backward = h_output_backward[0, :, :]                                  #(batch_size, hidden_dim)
 
         new_h_last_forward = hyp_hidd_unsorted[0, :, :]
         new_h_last_backward = hyp_hidd_unsorted[1, :, :]
