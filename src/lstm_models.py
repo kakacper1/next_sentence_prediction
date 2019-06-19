@@ -228,7 +228,7 @@ class LSTM_for_SNLI(nn.Module):
 
     def forward(self, premise, premise_len, hypothesis, hypothesis_len):
         # premise
-        #iter_batch_size = len(premise_len)
+        iter_batch_size = len(premise_len)
 
         premise = premise.to(self.device)
 
@@ -256,8 +256,8 @@ class LSTM_for_SNLI(nn.Module):
 
         pre_hidd_unsorted = pre_hidd[:, p_idx_unsort]
 
-        pre_hidd_unsorted = pre_hidd_unsorted.view(-1, self.config.hidden_size*2)
-        pre_hidd_unsorted = self.batchnorm_lstm(pre_hidd_unsorted)
+        #pre_hidd_unsorted = pre_hidd_unsorted.view(iter_batch_size*2, self.config.hidden_size*2)
+        #pre_hidd_unsorted = self.batchnorm_lstm(pre_hidd_unsorted)
 
         #h_s = h_s[:, p_idx_unsort]
         #premise_len = premise_len[p_idx_unsort]
@@ -294,8 +294,8 @@ class LSTM_for_SNLI(nn.Module):
         #hyp_hidd, b =pad_packed_sequence(hyp_hidd)
         hyp_hidd_unsorted =hyp_hidd[:, h_idx_unsort]
 
-        hyp_hidd_unsorted = hyp_hidd_unsorted.view(-1 , self.config.hidden_size*2)
-        hyp_hidd_unsorted = self.batchnorm_lstm(hyp_hidd_unsorted)
+        #hyp_hidd_unsorted = hyp_hidd_unsorted.view(iter_batch_size*2 , self.config.hidden_size*2)
+        #hyp_hidd_unsorted = self.batchnorm_lstm(hyp_hidd_unsorted)
         #h_t = h_t[:, h_idx_unsort]
 
         #hypothesis_len = hypothesis_len[h_idx_unsort]
@@ -317,8 +317,8 @@ class LSTM_for_SNLI(nn.Module):
        # p_last_forward = torch.gather(p_output_forward, 0, h_lengths - 1).squeeze(0) # (batch_size, hidden_dim)
        # p_last_backward = p_output_backward[0, :, :]                                  #(batch_size, hidden_dim)
 
-        #new_p_last_forward = pre_hidd_unsorted[0, :, :]
-        #new_p_last_backward = pre_hidd_unsorted[1, :, :]
+        new_p_last_forward = pre_hidd_unsorted[0, :, :]
+        new_p_last_backward = pre_hidd_unsorted[1, :, :]
 
 
      # # HYPOTHESIS: seperate both forward and backward pass:
@@ -334,8 +334,8 @@ class LSTM_for_SNLI(nn.Module):
 
      # h_last_forward = torch.gather(h_output_forward, 0, h_lengths - 1).squeeze(0) # (batch_size, hidden_dim)
      # h_last_backward = h_output_backward[0, :, :]                                  #(batch_size, hidden_dim)
-        #new_h_last_forward = hyp_hidd_unsorted[0, :, :]
-        #new_h_last_backward = hyp_hidd_unsorted[1, :, :]
+        new_h_last_forward = hyp_hidd_unsorted[0, :, :]
+        new_h_last_backward = hyp_hidd_unsorted[1, :, :]
 
 
         # concatenate:
@@ -343,8 +343,8 @@ class LSTM_for_SNLI(nn.Module):
         #all_last_seq_out = torch.cat((p_last_forward, p_last_backward, h_last_forward, h_last_backward), 1)
 
 
-        #all_last_seq_out = torch.cat((new_p_last_forward, new_p_last_backward, new_h_last_forward, new_h_last_backward), 1)
-        all_last_seq_out = torch.cat((pre_hidd_unsorted, hyp_hidd_unsorted),1)
+        all_last_seq_out = torch.cat((new_p_last_forward, new_p_last_backward, new_h_last_forward, new_h_last_backward), 1)
+        #all_last_seq_out = torch.cat((pre_hidd_unsorted, hyp_hidd_unsorted),1)
 
         x = self.dropout(all_last_seq_out)
 
