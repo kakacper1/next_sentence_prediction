@@ -24,14 +24,14 @@ parser.add_argument('--lr_decay', type=float, default=0.95)
 parser.add_argument('--grad_max_norm', type=float, default=0.)  #
 
 parser.add_argument('--embedding_dim', type=int, default=300)
-parser.add_argument('--hidden_size', type=int, default=150)
+parser.add_argument('--hidden_size', type=int, default=300)
 
 parser.add_argument('--slice_train', type=int, default=None)
 parser.add_argument('--slice_val', type=int, default=None)
 parser.add_argument('--slice_test', type=int, default=None)
 
 parser.add_argument('--dropout_fc', type=float, default=0.)  #
-parser.add_argument('--dropout_emb', type=float, default=0.3)
+parser.add_argument('--dropout_emb', type=float, default=0.2)
 
 parser.add_argument('--batch_size', type=int, default=512)
 parser.add_argument('--epochs', type=int, default=20)

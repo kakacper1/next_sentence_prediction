@@ -186,23 +186,23 @@ class LSTM_for_SNLI(nn.Module):
         self.word_embed.weight.data.copy_(TEXT.vocab.vectors)
         self.word_embed.weight.requires_grad = False
 
-        self.translation = nn.Linear(in_features=config.hidden_size*2, out_features=config.hidden_size*2, bias=True)
+        self.translation = nn.Linear(in_features=config.embedding_dim, out_features=config.embedding_dim, bias=True)
 
         # initialize all linear
         self.linear_1 = nn.Linear(in_features=config.hidden_size*4,
-                             out_features=config.hidden_size*4, bias=False)
-        self.linear_2 = nn.Linear(in_features=config.hidden_size*4,
-                             out_features=config.hidden_size*4, bias=False)
-        self.linear_3 = nn.Linear(in_features=config.hidden_size*4,
-                             out_features=config.hidden_size*4, bias=False)
-        self.linear_out = nn.Linear(in_features=config.hidden_size*4,
+                             out_features=config.hidden_size*2, bias=False)
+        self.linear_2 = nn.Linear(in_features=config.hidden_size*2,
+                             out_features=config.hidden_size*2, bias=False)
+        self.linear_3 = nn.Linear(in_features=config.hidden_size*2,
+                             out_features=config.hidden_size*2, bias=False)
+        self.linear_out = nn.Linear(in_features=config.hidden_size*2,
                             out_features=config.num_classes)
 
         self.init_linears()
 
         #self.lstm_prem = nn.LSTM(config.embedding_dim, config.hidden_size, bidirectional=True)
-        #self.lstm_hypo = nn.LSTM(config.embedding_dim, config.hidden_size, bidirectional=True) # todo Keras just one translation layer
-        self.lstm = nn.LSTM(config.embedding_dim, config.hidden_size, bidirectional=True)
+        #self.lstm_hypo = nn.LSTM(config.embedding_dim, config.hidden_size, bidirectional=True)
+        self.lstm = nn.LSTM(config.embedding_dim, config.hidden_size, bidirectional=True) #  Keras has just one translation layer
 
         if config.dropout_fc > 0.:
             self.dropout_fc = nn.Dropout(p=config.dropout_fc)
