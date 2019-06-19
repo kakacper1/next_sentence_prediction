@@ -186,8 +186,8 @@ class LSTM_for_SNLI(nn.Module):
         self.word_embed.weight.data.copy_(TEXT.vocab.vectors)
         self.word_embed.weight.requires_grad = False
 
-        #self.linear_0_pre = nn.Linear(in_features=config.hidden_size*2, out_features=config.hidden_size*2, bias=True)
-        #self.linear_0_hyp = nn.Linear(in_features=config.hidden_size*2, out_features=config.hidden_size*2, bias=True)
+        self.linear_0_pre = nn.Linear(in_features=config.hidden_size*2, out_features=config.hidden_size*2, bias=True)
+        self.linear_0_hyp = nn.Linear(in_features=config.hidden_size*2, out_features=config.hidden_size*2, bias=True)
 
         # initialize all linear
         self.linear_1 = nn.Linear(in_features=config.hidden_size*4,
@@ -219,10 +219,10 @@ class LSTM_for_SNLI(nn.Module):
         nn.init.xavier_uniform_(self.linear_out.weight)
         nn.init.uniform_(self.linear_out.bias)
 
-        #nn.init.xavier_uniform_(self.linear_0_pre.weight)
-        #nn.init.xavier_uniform_(self.linear_0_hyp.weight)
-        #nn.init.uniform_(self.linear_0_pre.bias)
-        #nn.init.uniform_(self.linear_0_hyp.bias)
+        nn.init.xavier_uniform_(self.linear_0_pre.weight)
+        nn.init.xavier_uniform_(self.linear_0_hyp.weight)
+        nn.init.uniform_(self.linear_0_pre.bias)
+        nn.init.uniform_(self.linear_0_hyp.bias)
 
     def forward(self, premise, premise_len, hypothesis, hypothesis_len):
         # premise
@@ -242,7 +242,7 @@ class LSTM_for_SNLI(nn.Module):
             premise = self.word_embed(premise)
 
         # Translation
-        #premise = self.linear_0_pre(premise)
+        premise = self.relu(self.linear_0_pre(premise))
 
         packed_premise = pack_padded_sequence(premise, premise_len)
         # (max_len, batch_size, hidden_size)
@@ -272,7 +272,7 @@ class LSTM_for_SNLI(nn.Module):
             hypothesis = self.word_embed(hypothesis)
 
         # Translation
-        #hypothesis = self.linear_0_pre(hypothesis)
+        hypothesis = self.relu(self.linear_0_pre(hypothesis))
 
 
         packed_hypothesis = pack_padded_sequence(hypothesis, hypothesis_len)
