@@ -205,7 +205,9 @@ class LSTM_for_SNLI(nn.Module):
         self.req_grad_params = self.get_req_grad_params()
 
         self.relu = nn.ReLU()
-        self.batchnorm = nn.BatchNorm1d(config.hidden_size * 2)
+        self.batchnorm_1 = nn.BatchNorm1d(num_features=config.hidden_size * 2)
+        self.batchnorm_2 = nn.BatchNorm1d(num_features=config.hidden_size * 2)
+        self.batchnorm_3 = nn.BatchNorm1d(num_features=config.hidden_size * 2)
 
         #self.softmax = nn.Softmax(dim=1)
 
@@ -298,15 +300,15 @@ class LSTM_for_SNLI(nn.Module):
 
         x = self.relu(self.linear_1(x))  # ([512, 600]) ~ (batch_size, linear_1_out)
         x = self.dropout(x)
-        x = self.batchnorm(x)
+        x = self.batchnorm_1(x)
 
         x = self.relu(self.linear_2(x))  # ([512, 600]) ~ (batch_size, linear_2_out)
         x = self.dropout(x)
-        x = self.batchnorm(x)
+        x = self.batchnorm_2(x)
 
         x = self.relu(self.linear_3(x))  # ([512, 600]) ~ (batch_size, linear_3_out)
         x = self.dropout(x)
-        x = self.batchnorm(x)
+        x = self.batchnorm_3(x)
 
         # todo keras  activation='softmax' at the end
         # return softmax(self.linear_out(x), dim=1) # for cross entropy we dont need softmax - is has it embedded
