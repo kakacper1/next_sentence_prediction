@@ -209,7 +209,10 @@ class LSTM_for_SNLI(nn.Module):
         self.req_grad_params = self.get_req_grad_params()
 
         self.relu = nn.ReLU()
-        self.batchnorm = nn.BatchNorm1d(config.hidden_size * 2)
+        self.batchnorm_linear = nn.BatchNorm1d(config.hidden_size * 2)
+        self.batchnorm_lstm = nn.BatchNorm1d(config.hidden_size*2)
+
+        self.softmax = nn.Softmax(dim=1)
 
     def init_linears(self):
 
@@ -225,20 +228,22 @@ class LSTM_for_SNLI(nn.Module):
 
     def forward(self, premise, premise_len, hypothesis, hypothesis_len):
         # premise
-        iter_batch_size = len(premise_len)
+        #iter_batch_size = len(premise_len)
 
         premise = premise.to(self.device)
-        prem_max_len = premise.size(0)
+
+
+        #prem_max_len = premise.size(0)
         premise_len, p_idxes = premise_len.sort(dim=0, descending=True)
         _, p_idx_unsort = torch.sort(p_idxes, dim=0, descending=False)
         premise = premise[:, p_idxes]
         # (max_len, batch_size) -> (max_len, batch_size, embed_dim)
-        if self.config.dropout_emb > 0. and self.training:
-            premise = F.dropout(self.word_embed(premise),
-                                p=self.config.dropout_emb,
-                                training=self.training)
-        else:
-            premise = self.word_embed(premise)
+        #if self.config.dropout_emb > 0. and self.training:
+        #    premise = F.dropout(self.word_embed(premise),
+        #                        p=self.config.dropout_emb,
+        #                        training=self.training)
+        #else:
+        premise = self.word_embed(premise)
 
         # Translation
         premise = self.relu(self.translation(premise))
@@ -251,28 +256,31 @@ class LSTM_for_SNLI(nn.Module):
 
         pre_hidd_unsorted = pre_hidd[:, p_idx_unsort]
 
-        h_s = h_s[:, p_idx_unsort]
-        premise_len = premise_len[p_idx_unsort]
+        pre_hidd_unsorted = pre_hidd_unsorted.view(-1, self.config.hidden_size*2)
+        pre_hidd_unsorted = self.batchnorm_lstm(pre_hidd_unsorted)
+
+        #h_s = h_s[:, p_idx_unsort]
+        #premise_len = premise_len[p_idx_unsort]
 
         # make it 0
-        for batch_idx, pl in enumerate(premise_len):
-            #h_s[pl:, batch_idx] *= 0.
-            pre_hidd_unsorted[pl:, batch_idx] *= 0.
+        #for batch_idx, pl in enumerate(premise_len):
+        #    #h_s[pl:, batch_idx] *= 0.
+        #    pre_hidd_unsorted[pl:, batch_idx] *= 0.
 
         # hypothesis
         hypothesis = hypothesis.to(self.device)
-        hypothesis_max_len = hypothesis.size(0)
+        #hypothesis_max_len = hypothesis.size(0)
         hypothesis_len, h_idxes = hypothesis_len.sort(dim=0, descending=True)
         _, h_idx_unsort = torch.sort(h_idxes, dim=0, descending=False)
         hypothesis = hypothesis[:, h_idxes]
         # (max_len, batch_size) -> (max_len, batch_size, embed_dim)
-        if self.config.dropout_emb > 0. and self.training:
-            print('no dropout in emb')
-            hypothesis = F.dropout(self.word_embed(hypothesis),
-                                   p=self.config.dropout_emb,
-                                   training=self.training)
-        else:
-            hypothesis = self.word_embed(hypothesis)
+        #if self.config.dropout_emb > 0. and self.training:
+        #    print('no dropout in emb')
+        #    hypothesis = F.dropout(self.word_embed(hypothesis),
+        #                           p=self.config.dropout_emb,
+        #                           training=self.training)
+        #else:
+        hypothesis = self.word_embed(hypothesis)
 
         # Translation
         hypothesis = self.relu(self.translation(hypothesis))
@@ -282,16 +290,18 @@ class LSTM_for_SNLI(nn.Module):
         # (max_len, batch_size, hidden_size)
         #h_t, (hyp_hidd, hyp_cell) = self.lstm_hypo(packed_hypothesis)
         h_t, (hyp_hidd, hyp_cell) = self.lstm(packed_hypothesis)
-        h_t, a = pad_packed_sequence(h_t)
+        #h_t, a = pad_packed_sequence(h_t)
         #hyp_hidd, b =pad_packed_sequence(hyp_hidd)
         hyp_hidd_unsorted =hyp_hidd[:, h_idx_unsort]
 
-        h_t = h_t[:, h_idx_unsort]
+        hyp_hidd_unsorted = hyp_hidd_unsorted.view(-1 , self.config.hidden_size*2)
+        hyp_hidd_unsorted = self.batchnorm_lstm(hyp_hidd_unsorted)
+        #h_t = h_t[:, h_idx_unsort]
 
-        hypothesis_len = hypothesis_len[h_idx_unsort]
-        for batch_idx, hl in enumerate(hypothesis_len):
-            #h_t[hl:, batch_idx] *= 0.
-            hyp_hidd_unsorted[hl:, batch_idx] *= 0.
+        #hypothesis_len = hypothesis_len[h_idx_unsort]
+        #for batch_idx, hl in enumerate(hypothesis_len):
+        #    #h_t[hl:, batch_idx] *= 0.
+        #    hyp_hidd_unsorted[hl:, batch_idx] *= 0.
 
        # # PREMISE: 1 seperate both forward and backward pass:
        # p_output = h_s.view(-1, iter_batch_size, self.config.hidden_size, 2)  # (seq_len, batch_size, hidden_size, num_directions bi or uni direction)
@@ -307,8 +317,8 @@ class LSTM_for_SNLI(nn.Module):
        # p_last_forward = torch.gather(p_output_forward, 0, h_lengths - 1).squeeze(0) # (batch_size, hidden_dim)
        # p_last_backward = p_output_backward[0, :, :]                                  #(batch_size, hidden_dim)
 
-        new_p_last_forward = pre_hidd_unsorted[0, :, :]
-        new_p_last_backward = pre_hidd_unsorted[1, :, :]
+        #new_p_last_forward = pre_hidd_unsorted[0, :, :]
+        #new_p_last_backward = pre_hidd_unsorted[1, :, :]
 
 
      # # HYPOTHESIS: seperate both forward and backward pass:
@@ -324,41 +334,41 @@ class LSTM_for_SNLI(nn.Module):
 
      # h_last_forward = torch.gather(h_output_forward, 0, h_lengths - 1).squeeze(0) # (batch_size, hidden_dim)
      # h_last_backward = h_output_backward[0, :, :]                                  #(batch_size, hidden_dim)
-        # todo BatchNormalization before merger seperate for prem and hypo
-        new_h_last_forward = hyp_hidd_unsorted[0, :, :]
-        new_h_last_backward = hyp_hidd_unsorted[1, :, :]
+        #new_h_last_forward = hyp_hidd_unsorted[0, :, :]
+        #new_h_last_backward = hyp_hidd_unsorted[1, :, :]
+
 
         # concatenate:
         # all_hidden = torch.cat((pre_hidd, hyp_hidd), 1)
         #all_last_seq_out = torch.cat((p_last_forward, p_last_backward, h_last_forward, h_last_backward), 1)
 
 
-        all_last_seq_out = torch.cat((new_p_last_forward, new_p_last_backward, new_h_last_forward, new_h_last_backward), 1)
+        #all_last_seq_out = torch.cat((new_p_last_forward, new_p_last_backward, new_h_last_forward, new_h_last_backward), 1)
+        all_last_seq_out = torch.cat((pre_hidd_unsorted, hyp_hidd_unsorted),1)
 
         x = self.dropout(all_last_seq_out)
 
 
         x = self.relu(self.linear_1(x))  # ([512, 600]) ~ (batch_size, linear_1_out)
         x = self.dropout(x)
-        #x = self.batchnorm(x)
+        x = self.batchnorm_linear(x)
 
         x = self.relu(self.linear_2(x))  # ([512, 600]) ~ (batch_size, linear_2_out)
         x = self.dropout(x)
-        #x = self.batchnorm(x)
+        x = self.batchnorm_linear(x)
 
         x = self.relu(self.linear_3(x))  # ([512, 600]) ~ (batch_size, linear_3_out)
         x = self.dropout(x)
-        #x = self.batchnorm(x)
+        x = self.batchnorm_linear(x)
 
         # todo keras  activation='softmax' at the end
         # return softmax(self.linear_out(x), dim=1) # for cross entropy we dont need softmax - is has it embedded
-        return self.linear_out(x)
+
+
+        x = self.linear_out(x)
+        #x = self.softmax(x)
+        return x
         # self.tanh(self.linear_out(x))
-
-
-
-
-        #return self.fc(h_t)
 
     def get_req_grad_params(self, debug=False):
         print('#parameters: ', end='')
