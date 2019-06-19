@@ -326,22 +326,28 @@ class LSTM_for_SNLI(nn.Module):
         new_h_last_forward = hyp_hidd_unsorted[0, :, :]
         new_h_last_backward = hyp_hidd_unsorted[1, :, :]
         # todo keras  dropout after marge
+
         # concatenate:
         # all_hidden = torch.cat((pre_hidd, hyp_hidd), 1)
         #all_last_seq_out = torch.cat((p_last_forward, p_last_backward, h_last_forward, h_last_backward), 1)
 
+
         all_last_seq_out = torch.cat((new_p_last_forward, new_p_last_backward, new_h_last_forward, new_h_last_backward), 1)
-        x = self.relu(self.linear_1(all_last_seq_out))  # ([512, 600]) ~ (batch_size, linear_1_out)
+
+        x = self.dropout(all_last_seq_out)
+
+        
+        x = self.relu(self.linear_1(x))  # ([512, 600]) ~ (batch_size, linear_1_out)
         x = self.dropout(x)
-        x = self.batchnorm(x)
+        #x = self.batchnorm(x)
 
         all_last_seq_out = self.relu(self.linear_2(x))  # ([512, 600]) ~ (batch_size, linear_2_out)
         x = self.dropout(x)
-        x = self.batchnorm(x)
+        #x = self.batchnorm(x)
 
         all_last_seq_out = self.relu(self.linear_3(x))  # ([512, 600]) ~ (batch_size, linear_3_out)
         x = self.dropout(x)
-        x = self.batchnorm(x)
+        #x = self.batchnorm(x)
 
         # todo keras  activation='softmax' at the end
         # return softmax(self.linear_out(x), dim=1) # for cross entropy we dont need softmax - is has it embedded
