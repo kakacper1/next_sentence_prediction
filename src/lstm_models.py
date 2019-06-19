@@ -190,11 +190,11 @@ class LSTM_for_SNLI(nn.Module):
 
         # initialize all linear
         self.linear_1 = nn.Linear(in_features=config.hidden_size*4,
-                             out_features=config.hidden_size*2, bias=False) # maybe change that to true
+                             out_features=config.hidden_size*2, bias=True) # maybe change that to true
         self.linear_2 = nn.Linear(in_features=config.hidden_size*2,
-                             out_features=config.hidden_size*2, bias=False)
+                             out_features=config.hidden_size*2, bias=True)
         self.linear_3 = nn.Linear(in_features=config.hidden_size*2,
-                             out_features=config.hidden_size*2, bias=False)
+                             out_features=config.hidden_size*2, bias=True)
         self.linear_out = nn.Linear(in_features=config.hidden_size*2,
                             out_features=config.num_classes)
 
@@ -253,9 +253,11 @@ class LSTM_for_SNLI(nn.Module):
 
         h_s = h_s[:, p_idx_unsort]
         premise_len = premise_len[p_idx_unsort]
+
         # make it 0
         for batch_idx, pl in enumerate(premise_len):
-            h_s[pl:, batch_idx] *= 0.
+            #h_s[pl:, batch_idx] *= 0.
+            pre_hidd_unsorted[pl:, batch_idx] *= 0.
 
         # hypothesis
         hypothesis = hypothesis.to(self.device)
@@ -287,9 +289,9 @@ class LSTM_for_SNLI(nn.Module):
         h_t = h_t[:, h_idx_unsort]
 
         hypothesis_len = hypothesis_len[h_idx_unsort]
-        #for batch_idx, hl in enumerate(hypothesis_len):
-        #   h_t[hl:, batch_idx] *= 0.
-
+        for batch_idx, hl in enumerate(hypothesis_len):
+            #h_t[hl:, batch_idx] *= 0.
+            hyp_hidd_unsorted[hl:, batch_idx] *= 0.
 
        # # PREMISE: 1 seperate both forward and backward pass:
        # p_output = h_s.view(-1, iter_batch_size, self.config.hidden_size, 2)  # (seq_len, batch_size, hidden_size, num_directions bi or uni direction)
@@ -336,7 +338,7 @@ class LSTM_for_SNLI(nn.Module):
 
         x = self.dropout(all_last_seq_out)
 
-        
+
         x = self.relu(self.linear_1(x))  # ([512, 600]) ~ (batch_size, linear_1_out)
         x = self.dropout(x)
         #x = self.batchnorm(x)
