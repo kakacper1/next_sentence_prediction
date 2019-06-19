@@ -33,7 +33,7 @@ parser.add_argument('--slice_test', type=int, default=None)
 parser.add_argument('--dropout_fc', type=float, default=0.)  #
 parser.add_argument('--dropout_emb', type=float, default=0.3)
 
-parser.add_argument('--batch_size', type=int, default=30)
+parser.add_argument('--batch_size', type=int, default=512)
 parser.add_argument('--epochs', type=int, default=20)
 
 parser.add_argument('--log_interval', type=int, default=10000)
