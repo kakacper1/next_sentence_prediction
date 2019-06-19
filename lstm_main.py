@@ -20,7 +20,7 @@ parser.add_argument('--data_path', type=str, default='./res/data/train/wiki_swap
 parser.add_argument('--num_classes', type=int, default=2)
 
 parser.add_argument('--lr', type=float, default=3e-4)
-parser.add_argument('--lr_decay', type=float, default=0.98)
+parser.add_argument('--lr_decay', type=float, default=0.97)
 parser.add_argument('--grad_max_norm', type=float, default=0.)  #
 
 parser.add_argument('--embedding_dim', type=int, default=300)
@@ -34,7 +34,7 @@ parser.add_argument('--dropout', type=float, default=0.2)  #
 parser.add_argument('--dropout_emb', type=float, default=0.)
 
 parser.add_argument('--batch_size', type=int, default=512)
-parser.add_argument('--epochs', type=int, default=20)
+parser.add_argument('--epochs', type=int, default=25)
 
 parser.add_argument('--log_interval', type=int, default=10000)
 parser.add_argument('--yes_cuda', type=int, default=1)

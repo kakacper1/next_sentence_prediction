@@ -247,9 +247,7 @@ class LSTM_for_SNLI(nn.Module):
         packed_premise = pack_padded_sequence(premise, premise_len) # (max_len, batch_size, hidden_size)
 
 
-        h_s, (pre_hidd, pre_cell) = self.lstm(packed_premise)
-
-        #h_s, _ = pad_packed_sequence(h_s)
+        h_s, (pre_hidd, _) = self.lstm(packed_premise)
 
         pre_hidd_unsorted = pre_hidd[:, p_idx_unsort]
 
@@ -286,36 +284,29 @@ class LSTM_for_SNLI(nn.Module):
         #hyp_hidd_unsorted = self.batchnorm_lstm(hyp_hidd_unsorted)
 
         # Second stage , concatenation
-        new_p_last_forward = pre_hidd_unsorted[0, :, :]
-        new_p_last_backward = pre_hidd_unsorted[1, :, :]
+        prem_last_forward = pre_hidd_unsorted[0, :, :]
+        prem_last_backward = pre_hidd_unsorted[1, :, :]
 
-
-
-        new_h_last_forward = hyp_hidd_unsorted[0, :, :]
-        new_h_last_backward = hyp_hidd_unsorted[1, :, :]
-
+        hypo_last_forward = hyp_hidd_unsorted[0, :, :]
+        hypo_last_backward = hyp_hidd_unsorted[1, :, :]
 
         # concatenate:
-        #all_last_seq_out = torch.cat((p_last_forward, p_last_backward, h_last_forward, h_last_backward), 1)
-
-
-        all_last_seq_out = torch.cat((new_p_last_forward, new_p_last_backward, new_h_last_forward, new_h_last_backward), 1)
-        #all_last_seq_out = torch.cat((pre_hidd_unsorted, hyp_hidd_unsorted),1)
+        all_last_seq_out = torch.cat((prem_last_forward, prem_last_backward, hypo_last_forward, hypo_last_backward), 1)
 
         x = self.dropout(all_last_seq_out)
 
 
         x = self.relu(self.linear_1(x))  # ([512, 600]) ~ (batch_size, linear_1_out)
         x = self.dropout(x)
-        #x = self.batchnorm(x)
+        x = self.batchnorm(x)
 
         x = self.relu(self.linear_2(x))  # ([512, 600]) ~ (batch_size, linear_2_out)
         x = self.dropout(x)
-        #x = self.batchnorm(x)
+        x = self.batchnorm(x)
 
         x = self.relu(self.linear_3(x))  # ([512, 600]) ~ (batch_size, linear_3_out)
         x = self.dropout(x)
-        #x = self.batchnorm(x)
+        x = self.batchnorm(x)
 
         # todo keras  activation='softmax' at the end
         # return softmax(self.linear_out(x), dim=1) # for cross entropy we dont need softmax - is has it embedded
