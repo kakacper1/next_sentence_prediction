@@ -19,8 +19,8 @@ parser.add_argument('--seed', type=int, default=2019)
 parser.add_argument('--data_path', type=str, default='./res/data/train/wiki_swapped_new')
 parser.add_argument('--num_classes', type=int, default=2)
 
-parser.add_argument('--lr', type=float, default=1e-3)
-parser.add_argument('--lr_decay', type=float, default=0.95)
+parser.add_argument('--lr', type=float, default=3e-4)
+parser.add_argument('--lr_decay', type=float, default=0.98)
 parser.add_argument('--grad_max_norm', type=float, default=0.)  #
 
 parser.add_argument('--embedding_dim', type=int, default=300)

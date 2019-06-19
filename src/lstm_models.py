@@ -190,11 +190,11 @@ class LSTM_for_SNLI(nn.Module):
 
         # initialize all linear
         self.linear_1 = nn.Linear(in_features=config.hidden_size*4,
-                             out_features=config.hidden_size*2, bias=True) # maybe change that to true
+                             out_features=config.hidden_size*2, bias=False) # maybe change that to true
         self.linear_2 = nn.Linear(in_features=config.hidden_size*2,
-                             out_features=config.hidden_size*2, bias=True)
+                             out_features=config.hidden_size*2, bias=False)
         self.linear_3 = nn.Linear(in_features=config.hidden_size*2,
-                             out_features=config.hidden_size*2, bias=True)
+                             out_features=config.hidden_size*2, bias=False)
         self.linear_out = nn.Linear(in_features=config.hidden_size*2,
                             out_features=config.num_classes)
 
@@ -209,6 +209,7 @@ class LSTM_for_SNLI(nn.Module):
         self.req_grad_params = self.get_req_grad_params()
 
         self.relu = nn.ReLU()
+        self.batchnorm = nn.BatchNorm1d(config.hidden_size * 2)
 
     def init_linears(self):
 
@@ -328,16 +329,20 @@ class LSTM_for_SNLI(nn.Module):
         # concatenate:
         # all_hidden = torch.cat((pre_hidd, hyp_hidd), 1)
         #all_last_seq_out = torch.cat((p_last_forward, p_last_backward, h_last_forward, h_last_backward), 1)
+
         all_last_seq_out = torch.cat((new_p_last_forward, new_p_last_backward, new_h_last_forward, new_h_last_backward), 1)
-        # todo  joint = BatchNormalization()(joint) after every linear  layer
         x = self.relu(self.linear_1(all_last_seq_out))  # ([512, 600]) ~ (batch_size, linear_1_out)
         x = self.dropout(x)
+        x = self.batchnorm(x)
 
         all_last_seq_out = self.relu(self.linear_2(x))  # ([512, 600]) ~ (batch_size, linear_2_out)
         x = self.dropout(x)
+        x = self.batchnorm(x)
 
         all_last_seq_out = self.relu(self.linear_3(x))  # ([512, 600]) ~ (batch_size, linear_3_out)
         x = self.dropout(x)
+        x = self.batchnorm(x)
+
         # todo keras  activation='softmax' at the end
         # return softmax(self.linear_out(x), dim=1) # for cross entropy we dont need softmax - is has it embedded
         return self.linear_out(x)
