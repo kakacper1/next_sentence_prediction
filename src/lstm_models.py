@@ -196,7 +196,7 @@ class LSTM_for_SNLI(nn.Module):
         self.linear_3 = nn.Linear(in_features=config.hidden_size*2,
                              out_features=config.hidden_size*2, bias=True)
         self.linear_out = nn.Linear(in_features=config.hidden_size*2,
-                            out_features=config.num_classes)
+                             out_features=config.num_classes)
 
         self.init_linears()
 
@@ -327,7 +327,6 @@ class LSTM_for_SNLI(nn.Module):
         # todo BatchNormalization before merger seperate for prem and hypo
         new_h_last_forward = hyp_hidd_unsorted[0, :, :]
         new_h_last_backward = hyp_hidd_unsorted[1, :, :]
-        # todo keras  dropout after marge
 
         # concatenate:
         # all_hidden = torch.cat((pre_hidd, hyp_hidd), 1)
@@ -343,11 +342,11 @@ class LSTM_for_SNLI(nn.Module):
         x = self.dropout(x)
         #x = self.batchnorm(x)
 
-        all_last_seq_out = self.relu(self.linear_2(x))  # ([512, 600]) ~ (batch_size, linear_2_out)
+        x = self.relu(self.linear_2(x))  # ([512, 600]) ~ (batch_size, linear_2_out)
         x = self.dropout(x)
         #x = self.batchnorm(x)
 
-        all_last_seq_out = self.relu(self.linear_3(x))  # ([512, 600]) ~ (batch_size, linear_3_out)
+        x = self.relu(self.linear_3(x))  # ([512, 600]) ~ (batch_size, linear_3_out)
         x = self.dropout(x)
         #x = self.batchnorm(x)
 
