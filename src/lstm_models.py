@@ -354,11 +354,11 @@ class LSTM_for_SNLI(nn.Module):
         x = self.dropout(x)
         x = self.batchnorm_linear(x)
 
-        all_last_seq_out = self.relu(self.linear_2(x))  # ([512, 600]) ~ (batch_size, linear_2_out)
+        x = self.relu(self.linear_2(x))  # ([512, 600]) ~ (batch_size, linear_2_out)
         x = self.dropout(x)
         x = self.batchnorm_linear(x)
 
-        all_last_seq_out = self.relu(self.linear_3(x))  # ([512, 600]) ~ (batch_size, linear_3_out)
+        x = self.relu(self.linear_3(x))  # ([512, 600]) ~ (batch_size, linear_3_out)
         x = self.dropout(x)
         x = self.batchnorm_linear(x)
 
