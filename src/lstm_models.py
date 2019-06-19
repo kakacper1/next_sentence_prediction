@@ -180,8 +180,6 @@ class LSTM_for_SNLI(nn.Module):
         use_cuda = config.yes_cuda > 0 and torch.cuda.is_available()
         self.device = torch.device("cuda" if use_cuda else "cpu")
 
-        #print('word2vec', word2vec.shape)
-        #assert len(word2vec[0]) == config.embedding_dim
         self.word_embed = nn.Embedding(TEXT.vocab.vectors.size()[0], config.embedding_dim, padding_idx=0)
         self.word_embed.weight.data.copy_(TEXT.vocab.vectors)
         self.word_embed.weight.requires_grad = False
@@ -200,19 +198,16 @@ class LSTM_for_SNLI(nn.Module):
 
         self.init_linears()
 
-        #self.lstm_prem = nn.LSTM(config.embedding_dim, config.hidden_size, bidirectional=True)
-        #self.lstm_hypo = nn.LSTM(config.embedding_dim, config.hidden_size, bidirectional=True)
-        self.lstm = nn.LSTM(config.embedding_dim, config.hidden_size, bidirectional=True) #  Keras has just one translation layer
+        self.lstm = nn.LSTM(config.embedding_dim, config.hidden_size, bidirectional=True)
 
         self.dropout = nn.Dropout(p=config.dropout)
 
         self.req_grad_params = self.get_req_grad_params()
 
         self.relu = nn.ReLU()
-        self.batchnorm_linear = nn.BatchNorm1d(config.hidden_size * 2)
-        self.batchnorm_lstm = nn.BatchNorm1d(config.hidden_size*2)
+        self.batchnorm = nn.BatchNorm1d(config.hidden_size * 2)
 
-        self.softmax = nn.Softmax(dim=1)
+        #self.softmax = nn.Softmax(dim=1)
 
     def init_linears(self):
 
@@ -227,45 +222,45 @@ class LSTM_for_SNLI(nn.Module):
 
 
     def forward(self, premise, premise_len, hypothesis, hypothesis_len):
-        # premise
-        #iter_batch_size = len(premise_len)
 
+        iter_batch_size = len(premise_len)
+
+
+
+
+        # PREMISE:
+
+        # 1. transfer to CUDA:
         premise = premise.to(self.device)
 
-
-        #prem_max_len = premise.size(0)
+        # 2. sort examples in descending order
         premise_len, p_idxes = premise_len.sort(dim=0, descending=True)
         _, p_idx_unsort = torch.sort(p_idxes, dim=0, descending=False)
         premise = premise[:, p_idxes]
-        # (max_len, batch_size) -> (max_len, batch_size, embed_dim)
-        #if self.config.dropout_emb > 0. and self.training:
-        #    premise = F.dropout(self.word_embed(premise),
-        #                        p=self.config.dropout_emb,
-        #                        training=self.training)
-        #else:
+
+        # 3. glove
         premise = self.word_embed(premise)
 
-        # Translation
-        premise = self.relu(self.translation(premise))
+        # 4 Translation
+        premise = self.relu(self.translation(premise)) # (max_len, batch_size) -> (max_len, batch_size, embed_dim)
 
-        packed_premise = pack_padded_sequence(premise, premise_len)
-        # (max_len, batch_size, hidden_size)
-        #h_s, (pre_hidd, pre_cell) = self.lstm_prem(packed_premise)
+        packed_premise = pack_padded_sequence(premise, premise_len) # (max_len, batch_size, hidden_size)
+
+
         h_s, (pre_hidd, pre_cell) = self.lstm(packed_premise)
-        h_s, _ = pad_packed_sequence(h_s)
+
+        #h_s, _ = pad_packed_sequence(h_s)
 
         pre_hidd_unsorted = pre_hidd[:, p_idx_unsort]
 
-        pre_hidd_unsorted = pre_hidd_unsorted.view(-1, self.config.hidden_size*2)
-        pre_hidd_unsorted = self.batchnorm_lstm(pre_hidd_unsorted)
+        #pre_hidd_unsorted = pre_hidd_unsorted.view(-1, self.config.hidden_size*2)
+        #pre_hidd_unsorted = self.batchnorm_lstm(pre_hidd_unsorted)
 
-        #h_s = h_s[:, p_idx_unsort]
-        #premise_len = premise_len[p_idx_unsort]
-
-        # make it 0
         #for batch_idx, pl in enumerate(premise_len):
         #    #h_s[pl:, batch_idx] *= 0.
         #    pre_hidd_unsorted[pl:, batch_idx] *= 0.
+
+
 
         # hypothesis
         hypothesis = hypothesis.to(self.device)
@@ -274,92 +269,53 @@ class LSTM_for_SNLI(nn.Module):
         _, h_idx_unsort = torch.sort(h_idxes, dim=0, descending=False)
         hypothesis = hypothesis[:, h_idxes]
         # (max_len, batch_size) -> (max_len, batch_size, embed_dim)
-        #if self.config.dropout_emb > 0. and self.training:
-        #    print('no dropout in emb')
-        #    hypothesis = F.dropout(self.word_embed(hypothesis),
-        #                           p=self.config.dropout_emb,
-        #                           training=self.training)
-        #else:
         hypothesis = self.word_embed(hypothesis)
 
         # Translation
         hypothesis = self.relu(self.translation(hypothesis))
 
-
         packed_hypothesis = pack_padded_sequence(hypothesis, hypothesis_len)
         # (max_len, batch_size, hidden_size)
-        #h_t, (hyp_hidd, hyp_cell) = self.lstm_hypo(packed_hypothesis)
-        h_t, (hyp_hidd, hyp_cell) = self.lstm(packed_hypothesis)
-        #h_t, a = pad_packed_sequence(h_t)
-        #hyp_hidd, b =pad_packed_sequence(hyp_hidd)
+        h_t, (hyp_hidd, _) = self.lstm(packed_hypothesis)
+
+
+        #hyp_hidd, b =pad_packed_sequence(hyp_hidd) reallY?
         hyp_hidd_unsorted =hyp_hidd[:, h_idx_unsort]
 
-        hyp_hidd_unsorted = hyp_hidd_unsorted.view(-1 , self.config.hidden_size*2)
-        hyp_hidd_unsorted = self.batchnorm_lstm(hyp_hidd_unsorted)
-        #h_t = h_t[:, h_idx_unsort]
+        #hyp_hidd_unsorted = hyp_hidd_unsorted.view(-1 , self.config.hidden_size*2)
+        #hyp_hidd_unsorted = self.batchnorm_lstm(hyp_hidd_unsorted)
 
-        #hypothesis_len = hypothesis_len[h_idx_unsort]
-        #for batch_idx, hl in enumerate(hypothesis_len):
-        #    #h_t[hl:, batch_idx] *= 0.
-        #    hyp_hidd_unsorted[hl:, batch_idx] *= 0.
-
-       # # PREMISE: 1 seperate both forward and backward pass:
-       # p_output = h_s.view(-1, iter_batch_size, self.config.hidden_size, 2)  # (seq_len, batch_size, hidden_size, num_directions bi or uni direction)
-       # p_output_forward = p_output[:, :, :, 0]  # (seq_len, batch_size, hidden_size)
-       # p_output_backward = p_output[:, :, :, 1]  # (seq_len, batch_size, hidden_size)
-#
-       # # 2 then  we unsqueeze seqlengths two times so it has the same number of dimensions as output_forward
-       # p_lengths = premise_len.unsqueeze(0).unsqueeze(2) # (batch_size) -> (1, batch_size, 1)
-#
-       # # 3 Then we expand it accordingly
-       # h_lengths = p_lengths.expand((1, -1, p_output_forward.size(2))) # (1, batch_size, 1) -> (1, batch_size, hidden_size)
-#
-       # p_last_forward = torch.gather(p_output_forward, 0, h_lengths - 1).squeeze(0) # (batch_size, hidden_dim)
-       # p_last_backward = p_output_backward[0, :, :]                                  #(batch_size, hidden_dim)
-
-        #new_p_last_forward = pre_hidd_unsorted[0, :, :]
-        #new_p_last_backward = pre_hidd_unsorted[1, :, :]
+        # Second stage , concatenation
+        new_p_last_forward = pre_hidd_unsorted[0, :, :]
+        new_p_last_backward = pre_hidd_unsorted[1, :, :]
 
 
-     # # HYPOTHESIS: seperate both forward and backward pass:
-     # h_output = h_t.view(-1, iter_batch_size, self.config.hidden_size, 2)  # (seq_len, batch_size, hidden_size, num_directions bi or uni direction)
-     # h_output_forward = h_output[:, :, :, 0]  # (seq_len, batch_size, hidden_size)
-     # h_output_backward = h_output[:, :, :, 1]  # (seq_len, batch_size, hidden_size)
 
-     # # 2 then  we unsqueeze seqlengths two times so it has the same number of dimensions as output_forward
-     # h_lengths = hypothesis_len.unsqueeze(0).unsqueeze(2) # (batch_size) -> (1, batch_size, 1)
-
-     # # 3 Then we expand it accordingly
-     # h_lengths = h_lengths.expand((1, -1, h_output_forward.size(2))) # (1, batch_size, 1) -> (1, batch_size, hidden_size)
-
-     # h_last_forward = torch.gather(h_output_forward, 0, h_lengths - 1).squeeze(0) # (batch_size, hidden_dim)
-     # h_last_backward = h_output_backward[0, :, :]                                  #(batch_size, hidden_dim)
         new_h_last_forward = hyp_hidd_unsorted[0, :, :]
         new_h_last_backward = hyp_hidd_unsorted[1, :, :]
 
 
         # concatenate:
-        # all_hidden = torch.cat((pre_hidd, hyp_hidd), 1)
         #all_last_seq_out = torch.cat((p_last_forward, p_last_backward, h_last_forward, h_last_backward), 1)
 
 
-        #all_last_seq_out = torch.cat((new_p_last_forward, new_p_last_backward, new_h_last_forward, new_h_last_backward), 1)
-        all_last_seq_out = torch.cat((pre_hidd_unsorted, hyp_hidd_unsorted),1)
+        all_last_seq_out = torch.cat((new_p_last_forward, new_p_last_backward, new_h_last_forward, new_h_last_backward), 1)
+        #all_last_seq_out = torch.cat((pre_hidd_unsorted, hyp_hidd_unsorted),1)
 
         x = self.dropout(all_last_seq_out)
 
 
         x = self.relu(self.linear_1(x))  # ([512, 600]) ~ (batch_size, linear_1_out)
         x = self.dropout(x)
-        x = self.batchnorm_linear(x)
+        #x = self.batchnorm(x)
 
         x = self.relu(self.linear_2(x))  # ([512, 600]) ~ (batch_size, linear_2_out)
         x = self.dropout(x)
-        x = self.batchnorm_linear(x)
+        #x = self.batchnorm(x)
 
         x = self.relu(self.linear_3(x))  # ([512, 600]) ~ (batch_size, linear_3_out)
         x = self.dropout(x)
-        x = self.batchnorm_linear(x)
+        #x = self.batchnorm(x)
 
         # todo keras  activation='softmax' at the end
         # return softmax(self.linear_out(x), dim=1) # for cross entropy we dont need softmax - is has it embedded
