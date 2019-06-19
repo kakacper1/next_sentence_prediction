@@ -190,11 +190,11 @@ class LSTM_for_SNLI(nn.Module):
 
         # initialize all linear
         self.linear_1 = nn.Linear(in_features=config.hidden_size*4,
-                             out_features=config.hidden_size*2, bias=False)
+                             out_features=config.hidden_size*2, bias=True) # maybe change that to true
         self.linear_2 = nn.Linear(in_features=config.hidden_size*2,
-                             out_features=config.hidden_size*2, bias=False)
+                             out_features=config.hidden_size*2, bias=True)
         self.linear_3 = nn.Linear(in_features=config.hidden_size*2,
-                             out_features=config.hidden_size*2, bias=False)
+                             out_features=config.hidden_size*2, bias=True)
         self.linear_out = nn.Linear(in_features=config.hidden_size*2,
                             out_features=config.num_classes)
 
@@ -204,8 +204,7 @@ class LSTM_for_SNLI(nn.Module):
         #self.lstm_hypo = nn.LSTM(config.embedding_dim, config.hidden_size, bidirectional=True)
         self.lstm = nn.LSTM(config.embedding_dim, config.hidden_size, bidirectional=True) #  Keras has just one translation layer
 
-        if config.dropout_fc > 0.:
-            self.dropout_fc = nn.Dropout(p=config.dropout_fc)
+        self.dropout = nn.Dropout(p=config.dropout)
 
         self.req_grad_params = self.get_req_grad_params()
 
@@ -265,6 +264,7 @@ class LSTM_for_SNLI(nn.Module):
         hypothesis = hypothesis[:, h_idxes]
         # (max_len, batch_size) -> (max_len, batch_size, embed_dim)
         if self.config.dropout_emb > 0. and self.training:
+            print('no dropout in emb')
             hypothesis = F.dropout(self.word_embed(hypothesis),
                                    p=self.config.dropout_emb,
                                    training=self.training)
@@ -321,26 +321,26 @@ class LSTM_for_SNLI(nn.Module):
 
      # h_last_forward = torch.gather(h_output_forward, 0, h_lengths - 1).squeeze(0) # (batch_size, hidden_dim)
      # h_last_backward = h_output_backward[0, :, :]                                  #(batch_size, hidden_dim)
-    # todo BatchNormalization before merger seperate for prem and hypo
+        # todo BatchNormalization before merger seperate for prem and hypo
         new_h_last_forward = hyp_hidd_unsorted[0, :, :]
         new_h_last_backward = hyp_hidd_unsorted[1, :, :]
-    # todo keras  dropout after marge
+        # todo keras  dropout after marge
         # concatenate:
         # all_hidden = torch.cat((pre_hidd, hyp_hidd), 1)
         #all_last_seq_out = torch.cat((p_last_forward, p_last_backward, h_last_forward, h_last_backward), 1)
         all_last_seq_out = torch.cat((new_p_last_forward, new_p_last_backward, new_h_last_forward, new_h_last_backward), 1)
-# todo keras  joint = Dropout(DP)(joint) and   joint = BatchNormalization()(joint) after every linear  layer
-        all_last_seq_out = self.relu(self.linear_1(all_last_seq_out))  # ([512, 600]) ~ (batch_size, linear_1_out)
-        # x = self.dropout(x)
+        # todo  joint = BatchNormalization()(joint) after every linear  layer
+        x = self.relu(self.linear_1(all_last_seq_out))  # ([512, 600]) ~ (batch_size, linear_1_out)
+        x = self.dropout(x)
 
-        all_last_seq_out = self.relu(self.linear_2(all_last_seq_out))  # ([512, 600]) ~ (batch_size, linear_2_out)
-        # x = self.dropout(x)
+        all_last_seq_out = self.relu(self.linear_2(x))  # ([512, 600]) ~ (batch_size, linear_2_out)
+        x = self.dropout(x)
 
-        all_last_seq_out = self.relu(self.linear_3(all_last_seq_out))  # ([512, 600]) ~ (batch_size, linear_3_out)
-        # x = self.dropout(x)
+        all_last_seq_out = self.relu(self.linear_3(x))  # ([512, 600]) ~ (batch_size, linear_3_out)
+        x = self.dropout(x)
         # todo keras  activation='softmax' at the end
         # return softmax(self.linear_out(x), dim=1) # for cross entropy we dont need softmax - is has it embedded
-        return self.linear_out(all_last_seq_out)
+        return self.linear_out(x)
         # self.tanh(self.linear_out(x))
 
 
