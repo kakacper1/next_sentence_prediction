@@ -17,7 +17,8 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument('--task_type', type=str, default="nsp")  # "snli"
 parser.add_argument('--seed', type=int, default=2019)
-parser.add_argument('--data_path', type=str, default='./res/data/train/wiki_swapped_new')
+parser.add_argument('--data_path', type=str, default='.res/data/wiki_pages/basic_50_50/')
+#parser.add_argument('--data_path', type=str, default='.res/data/wiki_pages/swapped_33_33_33')
 parser.add_argument('--num_classes', type=int, default=2)
 
 # to pick the right model:
@@ -49,8 +50,8 @@ parser.add_argument('--patience', type=int, default=4)
 
 
 parser.add_argument('--eed', type=bool, default=False)
-parser.add_argument('--eed_swapped', type=str, default='./res/data/train/wiki_swapped_new/test.tsv')
-parser.add_argument('--eed_regular', type=str, default='./res/data/train/wiki_swapped_new/test.tsv')
+parser.add_argument('--eed_swapped', type=str, default='./res/data/wiki_pages/swapped_33_33_33/test_50_50_true_swapped.tsv')
+parser.add_argument('--eed_regular', type=str, default='./res/data/wiki_pages/swapped_33_33_33/test_50_50_true_random.tsv')
 
 
 def train_epoch(device, loader, model, epoch, optimizer, loss_func, config):
@@ -96,7 +97,7 @@ def train_epoch(device, loader, model, epoch, optimizer, loss_func, config):
     return train_loss, acc
 
 
-def evaluate_epoch(device, loader, model, epoch, loss_func, mode, config):
+def evaluate_epoch(device, loader, model, epoch, loss_func, mode, config, finish=False):
     model.eval()
     eval_loss = 0.
     correct = 0
@@ -117,7 +118,7 @@ def evaluate_epoch(device, loader, model, epoch, loss_func, mode, config):
                                              correct, len(loader.dataset),
                                              100. * acc))
 
-    if epoch == config.epochs and mode == 'Test':
+    if (epoch == config.epochs and mode == 'Test') or finish:
         # Draw confusion matrices:
         if config.task_type == 'snli':
             class_names = np.array(['entailment', 'contradiction', 'neutral'], dtype='<U10')
@@ -127,8 +128,13 @@ def evaluate_epoch(device, loader, model, epoch, loss_func, mode, config):
         np.set_printoptions(precision=2)
 
         # Plot normalized confusion
+        if config.use_cuda:
+            target = get_numpy(target)
+            pred = get_numpy(pred)
+
         plot_confusion_matrix(target, pred, classes=class_names, normalize=True,
                               title='Normalized confusion matrix')
+
         plt.savefig(config.norm_conf_mat_path)
 
     return eval_loss, acc
@@ -142,7 +148,11 @@ def set_plots_model_names(now_str, args):
     norm_conf_mat_path = "./res/plots/normalized_confusion_matrix_%s.svg" % now_str
     args_path = "./res/models/dict_" + args.model_name + "_%s" % now_str
 
-    return model_path, learning_curve_path, roc_curve_path, conf_mat_path, norm_conf_mat_path, args_path
+    roc_curve_path_ext_swapped = "./res/plots/swapped_roc_curve_%s.svg" % now_str
+
+    roc_curve_path_ext_regular = "./res/plots/regular_roc_curve_%s.svg" % now_str
+
+    return model_path, learning_curve_path, roc_curve_path, conf_mat_path, norm_conf_mat_path, args_path, roc_curve_path_ext_swapped, roc_curve_path_ext_regular
 
 def main():
     patience_counter = 0
@@ -153,21 +163,23 @@ def main():
     # handling timestamp:
     cur_date = datetime.now()
     now_str = '%d-%d-%d_%d:%d' % (cur_date.year, cur_date.month, cur_date.day, cur_date.hour, cur_date.minute)
-    model_path, learning_curve_path, roc_curve_path, conf_mat_path, norm_conf_mat_path, args_path = set_plots_model_names(
+    model_path, learning_curve_path, roc_curve_path, conf_mat_path, norm_conf_mat_path, args_path, roc_curve_path_ext_swapped ,roc_curve_path_ext_regular = set_plots_model_names(
         now_str, args)
     args.norm_conf_mat_path = norm_conf_mat_path
+    args.roc_curve_path_ext_swapped = roc_curve_path_ext_swapped
+    args.roc_curve_path_ext_regular = roc_curve_path_ext_regular
 
     # handle cuda usage
-    use_cuda = args.yes_cuda > 0 and torch.cuda.is_available()
-    device = torch.device("cuda" if use_cuda else "cpu")
+    args.use_cuda = args.yes_cuda > 0 and torch.cuda.is_available()
+    device = torch.device("cuda" if args.use_cuda else "cpu")
 
     # set a seed to ensure deterministic start
     torch.manual_seed(args.seed)
-    if use_cuda:
+    if args.use_cuda:
         torch.cuda.manual_seed(args.seed)
     # print type of execution
     print('CUDA device_count {0}'.format(torch.cuda.device_count())
-          if use_cuda else 'CPU')
+          if args.use_cuda else 'CPU')
 
     # to get the right dataset
     if args.task_type == "nsp":
@@ -207,6 +219,7 @@ def main():
 
     train_losses = []
     train_accuracies = []
+    is_last_one = False
 
     for epoch in range(1, args.epochs + 1):
 
@@ -230,8 +243,9 @@ def main():
             best_epoch = epoch
         print('\tLowest Valid Loss {:.6f}, Acc. {:.1f}%, Epoch {}'.
               format(best_loss, 100 * best_acc, best_epoch))
-
-        iter_test_loss, iter_test_accuracy = evaluate_epoch(device, test_iter, model, epoch, loss_func, 'Test', args)
+        if patience_counter > args.patience:
+            is_last_one = True
+        iter_test_loss, iter_test_accuracy = evaluate_epoch(device, test_iter, model, epoch, loss_func, 'Test', args, finish=is_last_one)
         test_losses.append(iter_test_loss)
         test_accuracies.append(iter_test_accuracy)
 
@@ -258,17 +272,16 @@ def main():
 
     if args.eed == True:
 
-        evaluation_iter, eval_dataset = load_evaluation_dataset(TEXT, LABELS, path=args.eval_ext_dataset_path_swapped, )
+        evaluation_iter, eval_dataset = load_evaluation_dataset(TEXT, LABELS, path=args.eed_regular, )
 
         test_targs, test_preds, raw_outputs_class_one, raw_outputs_class_two = [], [], [], []
 
         ### Evaluate test set
         for batch_idx, batch in enumerate(evaluation_iter):
-            output = model(batch)
+            output = model(batch.premise[0], batch.premise[1], batch.hypothesis[0], batch.hypothesis[1])
             preds = torch.max(output, 1)[1]
 
-            test_targs += list(batch.label.numpy())
-            if (use_cuda):
+            if (args.use_cuda):
                 raw_outputs_class_one += list(get_numpy(output[:, 0]))
                 raw_outputs_class_two += list(get_numpy(output[:, 1]))
                 test_targs += list(get_numpy(batch.label))
@@ -279,22 +292,27 @@ def main():
                 test_preds += list(preds.data.numpy())
                 test_targs += list(batch.label.numpy())
         test_accuracy = accuracy_score(test_targs, test_preds)
+
         print("\nEvaluation set Acc:  %f" % (test_accuracy))
         print('size of evaluation dataset: %d sentence pairs' % (len(eval_dataset)))
+
+        y_test_preds = np.array(raw_outputs_class_two)
+        y_test_targs = np.array(test_targs)
+
+        draw_roc_curve(y_test_preds, y_test_targs, path=args.roc_curve_path_ext_regular)
 
     if args.eed == True:
 
-        evaluation_iter, eval_dataset = load_evaluation_dataset(TEXT, LABELS, path=args.eval_ext_dataset_path_swapped)
+        evaluation_iter, eval_dataset = load_evaluation_dataset(TEXT, LABELS, path=args.eed_swapped)
 
         test_targs, test_preds, raw_outputs_class_one, raw_outputs_class_two = [], [], [], []
 
         ### Evaluate test set
         for batch_idx, batch in enumerate(evaluation_iter):
-            output = model(batch)
+            output = model(batch.premise[0], batch.premise[1], batch.hypothesis[0], batch.hypothesis[1])
             preds = torch.max(output, 1)[1]
 
-            test_targs += list(batch.label.numpy())
-            if (use_cuda):
+            if (args.use_cuda):
                 raw_outputs_class_one += list(get_numpy(output[:, 0]))
                 raw_outputs_class_two += list(get_numpy(output[:, 1]))
                 test_targs += list(get_numpy(batch.label))
@@ -307,6 +325,11 @@ def main():
         test_accuracy = accuracy_score(test_targs, test_preds)
         print("\nEvaluation set Acc:  %f" % (test_accuracy))
         print('size of evaluation dataset: %d sentence pairs' % (len(eval_dataset)))
+
+        y_test_preds = np.array(raw_outputs_class_two)
+        y_test_targs = np.array(test_targs)
+
+        draw_roc_curve(y_test_preds, y_test_targs, path=args.roc_curve_path_ext_swapped  )
 
 if __name__ == '__main__':
     main()

@@ -131,7 +131,6 @@ def plot_confusion_matrix(y_true, y_pred, classes,
             title = 'Normalized confusion matrix'
         else:
             title = 'Confusion matrix, without normalization'
-
     # Compute confusion matrix
     cm = confusion_matrix(y_true, y_pred)
     # Only use the labels that appear in the data
@@ -215,8 +214,8 @@ def load_evaluation_dataset( TEXT, LABELS, path):
 
     eval_fields = [
         ('label', LABELS),  # process it as label
-        ('sentence_a', TEXT),  # process it as text
-        ('sentence_b', TEXT)  # process it as text
+        ('premise', TEXT),  # process it as text
+        ('hypothesis', TEXT)  # process it as text
     ]
 
     eval_dataset = data.TabularDataset(
