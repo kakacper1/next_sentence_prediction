@@ -5,9 +5,11 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 
 class LSTM_for_NSP(nn.Module):
-    def __init__(self, config, TEXT):
+    def __init__(self, config, TEXT, LABELS):
         super(LSTM_for_NSP, self).__init__()
         self.config = config
+        self.TEXT = TEXT
+        self.LABELS = LABELS
 
         use_cuda = config.yes_cuda > 0 and torch.cuda.is_available()
         self.device = torch.device("cuda" if use_cuda else "cpu")
@@ -171,11 +173,22 @@ class LSTM_for_NSP(nn.Module):
         print('{:,}'.format(total_size))
         return params
 
+    def get_TEXT(self):
+        return self.TEXT
+
+
+    def get_LABELS(self):
+        return self.LABELS
+
+
 
 class LSTM_for_SNLI(nn.Module):
-    def __init__(self, config, TEXT):
+    def __init__(self, config, TEXT,LABELS):
         super(LSTM_for_SNLI, self).__init__()
         self.config = config
+        self.TEXT = TEXT
+        self.LABELS = LABELS
+
 
         use_cuda = config.yes_cuda > 0 and torch.cuda.is_available()
         self.device = torch.device("cuda" if use_cuda else "cpu")
@@ -348,3 +361,9 @@ class LSTM_for_SNLI(nn.Module):
         print('{:,}'.format(total_size))
         return params
 
+    def get_TEXT(self):
+        return self.TEXT
+
+
+    def get_LABELS(self):
+        return self.LABELS

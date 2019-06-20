@@ -17,7 +17,7 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument('--task_type', type=str, default="nsp")  # "snli"
 parser.add_argument('--seed', type=int, default=2019)
-parser.add_argument('--data_path', type=str, default='.res/data/wiki_pages/basic_50_50/')
+parser.add_argument('--data_path', type=str, default='.res/data/wiki_pages/basic_50_50')
 #parser.add_argument('--data_path', type=str, default='.res/data/wiki_pages/swapped_33_33_33')
 parser.add_argument('--num_classes', type=int, default=2)
 
@@ -199,7 +199,7 @@ def main():
     print('#examples', len(train_iter.dataset), len(val_iter.dataset),
           len(test_iter.dataset))
 
-    model = LSTM_for_SNLI(args, TEXT).to(device)
+    model = LSTM_for_SNLI(args, TEXT, LABELS).to(device)
 
     optimizer = optim.Adam(model.req_grad_params, lr=args.lr,
                            betas=(0.9, 0.999), amsgrad=True)
@@ -266,6 +266,7 @@ def main():
     # Save model
     if args.save_model:
         torch.save(model, model_path)
+        print('Model saved: ', str(model_path))
 
 
     # external dataset evaluation:
