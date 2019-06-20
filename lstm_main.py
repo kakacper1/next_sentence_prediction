@@ -4,7 +4,8 @@ import pprint
 import torch
 import torch.nn as nn
 import torch.optim as optim
-#from src.mlstm_model import MatchLSTM
+from sklearn.metrics import accuracy_score
+
 from src.utils import *
 from src.lstm_models import LSTM_for_NSP,LSTM_for_SNLI
 from torchtext import data
@@ -45,6 +46,11 @@ parser.add_argument('--num_workers', type=int, default=4)
 
 parser.add_argument('--save_model', type=bool, default=False)
 parser.add_argument('--patience', type=int, default=4)
+
+
+parser.add_argument('--evaluation_ext_dataset', type=bool, default=True)
+parser.add_argument('--eval_ext_dataset_path_swapped', type=str, default='./res/data/train/wiki_swapped_new/test.tsv')
+parser.add_argument('--eval_ext_dataset_path_regular', type=str, default='./res/data/train/wiki_swapped_new/test.tsv')
 
 
 def train_epoch(device, loader, model, epoch, optimizer, loss_func, config):
@@ -113,8 +119,10 @@ def evaluate_epoch(device, loader, model, epoch, loss_func, mode, config):
 
     if epoch == config.epochs and mode == 'Test':
         # Draw confusion matrices:
-
-        class_names = np.array(['entailment', 'contradiction', 'neutral'], dtype='<U10')
+        if config.task_type == 'snli':
+            class_names = np.array(['entailment', 'contradiction', 'neutral'], dtype='<U10')
+        else:
+            class_names = np.array(['regular', 'random', ], dtype='<U10')
 
         np.set_printoptions(precision=2)
 
@@ -238,8 +246,6 @@ def main():
                   .format(param_group['lr'], param_group['lr'] * args.lr_decay))
             param_group['lr'] *= args.lr_decay
 
-
-
     # draw_results
     draw_learning_curve(train_accuracies, valid_accuracies, path=learning_curve_path)
 
@@ -247,6 +253,60 @@ def main():
     if args.save_model:
         torch.save(model, model_path)
 
+
+    # external dataset evaluation:
+
+    if args.evaluation_ext_dataset == True:
+
+        evaluation_iter, eval_dataset = load_evaluation_dataset(TEXT, LABELS, path=args.eval_ext_dataset_path_swapped, )
+
+        test_targs, test_preds, raw_outputs_class_one, raw_outputs_class_two = [], [], [], []
+
+        ### Evaluate test set
+        for batch_idx, batch in enumerate(evaluation_iter):
+            output = model(batch)
+            preds = torch.max(output, 1)[1]
+
+            test_targs += list(batch.label.numpy())
+            if (use_cuda):
+                raw_outputs_class_one += list(get_numpy(output[:, 0]))
+                raw_outputs_class_two += list(get_numpy(output[:, 1]))
+                test_targs += list(get_numpy(batch.label))
+                test_preds += list(get_numpy(preds.data))
+            else:
+                raw_outputs_class_one += list(get_numpy(output[:, 0]))
+                raw_outputs_class_two += list(get_numpy(output[:, 1]))
+                test_preds += list(preds.data.numpy())
+                test_targs += list(batch.label.numpy())
+        test_accuracy = accuracy_score(test_targs, test_preds)
+        print("\nEvaluation set Acc:  %f" % (test_accuracy))
+        print('size of evaluation dataset: %d sentence pairs' % (len(eval_dataset)))
+
+        if args.evaluation_ext_dataset == True:
+
+            evaluation_iter, eval_dataset = load_evaluation_dataset(TEXT, LABELS, path=args.eval_ext_dataset_path_swapped)
+
+            test_targs, test_preds, raw_outputs_class_one, raw_outputs_class_two = [], [], [], []
+
+            ### Evaluate test set
+            for batch_idx, batch in enumerate(evaluation_iter):
+                output = model(batch)
+                preds = torch.max(output, 1)[1]
+
+                test_targs += list(batch.label.numpy())
+                if (use_cuda):
+                    raw_outputs_class_one += list(get_numpy(output[:, 0]))
+                    raw_outputs_class_two += list(get_numpy(output[:, 1]))
+                    test_targs += list(get_numpy(batch.label))
+                    test_preds += list(get_numpy(preds.data))
+                else:
+                    raw_outputs_class_one += list(get_numpy(output[:, 0]))
+                    raw_outputs_class_two += list(get_numpy(output[:, 1]))
+                    test_preds += list(preds.data.numpy())
+                    test_targs += list(batch.label.numpy())
+            test_accuracy = accuracy_score(test_targs, test_preds)
+            print("\nEvaluation set Acc:  %f" % (test_accuracy))
+            print('size of evaluation dataset: %d sentence pairs' % (len(eval_dataset)))
 
 if __name__ == '__main__':
     main()
