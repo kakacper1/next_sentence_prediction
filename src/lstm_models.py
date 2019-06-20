@@ -180,9 +180,9 @@ class LSTM_for_SNLI(nn.Module):
         use_cuda = config.yes_cuda > 0 and torch.cuda.is_available()
         self.device = torch.device("cuda" if use_cuda else "cpu")
 
-        self.word_embed = nn.Embedding(TEXT.vocab.vectors.size()[0], config.embedding_dim, padding_idx=1) # looks like it is inddiferent
+        self.word_embed = nn.Embedding(TEXT.vocab.vectors.size()[0], config.embedding_dim, padding_idx=0) # looks like it is inddiferent
         self.word_embed.weight.data.copy_(TEXT.vocab.vectors)
-        self.word_embed.weight.requires_grad = True
+        self.word_embed.weight.requires_grad = False
 
         self.translation = nn.Linear(in_features=config.embedding_dim, out_features=config.embedding_dim, bias=True)
 
