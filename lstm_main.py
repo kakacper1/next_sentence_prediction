@@ -48,9 +48,9 @@ parser.add_argument('--save_model', type=bool, default=False)
 parser.add_argument('--patience', type=int, default=4)
 
 
-parser.add_argument('--evaluation_ext_dataset', type=bool, default=True)
-parser.add_argument('--eval_ext_dataset_path_swapped', type=str, default='./res/data/train/wiki_swapped_new/test.tsv')
-parser.add_argument('--eval_ext_dataset_path_regular', type=str, default='./res/data/train/wiki_swapped_new/test.tsv')
+parser.add_argument('--eed', type=bool, default=False)
+parser.add_argument('--eed_swapped', type=str, default='./res/data/train/wiki_swapped_new/test.tsv')
+parser.add_argument('--eed_regular', type=str, default='./res/data/train/wiki_swapped_new/test.tsv')
 
 
 def train_epoch(device, loader, model, epoch, optimizer, loss_func, config):
@@ -256,7 +256,7 @@ def main():
 
     # external dataset evaluation:
 
-    if args.evaluation_ext_dataset == True:
+    if args.eed == True:
 
         evaluation_iter, eval_dataset = load_evaluation_dataset(TEXT, LABELS, path=args.eval_ext_dataset_path_swapped, )
 
@@ -282,31 +282,31 @@ def main():
         print("\nEvaluation set Acc:  %f" % (test_accuracy))
         print('size of evaluation dataset: %d sentence pairs' % (len(eval_dataset)))
 
-        if args.evaluation_ext_dataset == True:
+    if args.eed == True:
 
-            evaluation_iter, eval_dataset = load_evaluation_dataset(TEXT, LABELS, path=args.eval_ext_dataset_path_swapped)
+        evaluation_iter, eval_dataset = load_evaluation_dataset(TEXT, LABELS, path=args.eval_ext_dataset_path_swapped)
 
-            test_targs, test_preds, raw_outputs_class_one, raw_outputs_class_two = [], [], [], []
+        test_targs, test_preds, raw_outputs_class_one, raw_outputs_class_two = [], [], [], []
 
-            ### Evaluate test set
-            for batch_idx, batch in enumerate(evaluation_iter):
-                output = model(batch)
-                preds = torch.max(output, 1)[1]
+        ### Evaluate test set
+        for batch_idx, batch in enumerate(evaluation_iter):
+            output = model(batch)
+            preds = torch.max(output, 1)[1]
 
+            test_targs += list(batch.label.numpy())
+            if (use_cuda):
+                raw_outputs_class_one += list(get_numpy(output[:, 0]))
+                raw_outputs_class_two += list(get_numpy(output[:, 1]))
+                test_targs += list(get_numpy(batch.label))
+                test_preds += list(get_numpy(preds.data))
+            else:
+                raw_outputs_class_one += list(get_numpy(output[:, 0]))
+                raw_outputs_class_two += list(get_numpy(output[:, 1]))
+                test_preds += list(preds.data.numpy())
                 test_targs += list(batch.label.numpy())
-                if (use_cuda):
-                    raw_outputs_class_one += list(get_numpy(output[:, 0]))
-                    raw_outputs_class_two += list(get_numpy(output[:, 1]))
-                    test_targs += list(get_numpy(batch.label))
-                    test_preds += list(get_numpy(preds.data))
-                else:
-                    raw_outputs_class_one += list(get_numpy(output[:, 0]))
-                    raw_outputs_class_two += list(get_numpy(output[:, 1]))
-                    test_preds += list(preds.data.numpy())
-                    test_targs += list(batch.label.numpy())
-            test_accuracy = accuracy_score(test_targs, test_preds)
-            print("\nEvaluation set Acc:  %f" % (test_accuracy))
-            print('size of evaluation dataset: %d sentence pairs' % (len(eval_dataset)))
+        test_accuracy = accuracy_score(test_targs, test_preds)
+        print("\nEvaluation set Acc:  %f" % (test_accuracy))
+        print('size of evaluation dataset: %d sentence pairs' % (len(eval_dataset)))
 
 if __name__ == '__main__':
     main()

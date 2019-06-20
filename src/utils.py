@@ -200,3 +200,36 @@ def draw_roc_curve(y_test_preds, y_test_targs, path='.res/plots'):
     plt.ylabel('True Positive Rate')
     plt.xlabel('False Positive Rate')
     plt.savefig(path)
+
+
+def load_evaluation_dataset( TEXT, LABELS, path):
+
+    # define the columns that we want to process and how to process
+   #TEXT = data.Field(sequential=True,
+   #                  include_lengths=True,
+   #                  use_vocab=True)
+   #LABELS = data.Field(sequential=False,
+   #                    use_vocab=True,
+   #                    pad_token=None,
+   #                    unk_token=None)
+
+    eval_fields = [
+        ('label', LABELS),  # process it as label
+        ('sentence_a', TEXT),  # process it as text
+        ('sentence_b', TEXT)  # process it as text
+    ]
+
+    eval_dataset = data.TabularDataset(
+        path=path,
+        format='tsv',
+        fields=eval_fields,
+        skip_header=True)
+
+    evaluation_iter = data.BucketIterator(
+        dataset=eval_dataset, batch_size=512)
+
+    batch = next(iter(evaluation_iter))
+    print(batch)
+
+    return evaluation_iter, eval_dataset
+
