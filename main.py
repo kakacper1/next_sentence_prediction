@@ -5,7 +5,6 @@ import time
 from src.utils import *
 import pprint
 import torch
-import datetime
 import numpy as np
 from sklearn.metrics import accuracy_score
 import csv
@@ -155,7 +154,7 @@ def main():
     pprint.PrettyPrinter().pprint(args.__dict__)
 
     # handling timestamp:
-    cur_date = datetime.datetime.now()
+    cur_date = datetime.now()
     now_str = '%d-%d-%d_%d:%d' % (cur_date.year, cur_date.month, cur_date.day, cur_date.hour, cur_date.minute)
     model_path, learning_curve_path, roc_curve_path, conf_mat_path, norm_conf_mat_path, args_path = set_plots_model_names(now_str, args)
 
