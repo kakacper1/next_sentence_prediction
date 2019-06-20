@@ -14,7 +14,7 @@ from torchtext.vocab import GloVe
 # https://github.com/shuohangwang/SeqMatchSeq/blob/master/main/main.lua
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--task_type', type=str, default="nsp")  # "nli"
+parser.add_argument('--task_type', type=str, default="nsp")  # "snli"
 parser.add_argument('--seed', type=int, default=2019)
 parser.add_argument('--data_path', type=str, default='./res/data/train/wiki_swapped_new')
 parser.add_argument('--num_classes', type=int, default=2)
