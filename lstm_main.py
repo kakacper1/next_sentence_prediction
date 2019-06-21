@@ -50,7 +50,7 @@ parser.add_argument('--patience', type=int, default=4)
 
 
 parser.add_argument('--eed', type=bool, default=False)
-parser.add_argument('--eed_swapped', type=str, default='./res/data/wiki_pages/swapped_33_33_33/test_50_50_true_swapped.tsv')
+parser.add_argument('--eed_swapped', type=str, default='./res/data/wiki_pages/swapped_33_33_33/test_50_50_true_swap.tsv')
 parser.add_argument('--eed_regular', type=str, default='./res/data/wiki_pages/swapped_33_33_33/test_50_50_true_random.tsv')
 
 
@@ -263,10 +263,13 @@ def main():
     # draw_results
     draw_learning_curve(train_accuracies, valid_accuracies, path=learning_curve_path)
 
+    # works with torchtext bigger than 0.4.0 amd on dtu server there is 0.3.1
+    # ask admins?
+
     # Save model
-    if args.save_model:
-        torch.save(model, model_path)
-        print('Model saved: ', str(model_path))
+    #if args.save_model:
+    #    torch.save(model, model_path)
+    #    print('Model saved: ', str(model_path))
 
 
     # external dataset evaluation:
