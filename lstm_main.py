@@ -17,15 +17,15 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument('--task_type', type=str, default="nsp")  # "snli"
 parser.add_argument('--seed', type=int, default=2019)
-parser.add_argument('--data_path', type=str, default='.res/data/wiki_pages/basic_50_50')
-#parser.add_argument('--data_path', type=str, default='.res/data/wiki_pages/swapped_33_33_33')
+#parser.add_argument('--data_path', type=str, default='.res/data/wiki_pages/basic_50_50')
+parser.add_argument('--data_path', type=str, default='.res/data/wiki_pages/swapped_33_33_33')
 parser.add_argument('--num_classes', type=int, default=2)
 
 # to pick the right model:
 parser.add_argument('--model_name', type=str, default="lstm_snli") # bow_nsp , bow_snli
 
-parser.add_argument('--lr', type=float, default=3e-4)
-parser.add_argument('--lr_decay', type=float, default=0.97)
+parser.add_argument('--lr', type=float, default=0.00025)
+parser.add_argument('--lr_decay', type=float, default=0.96)
 parser.add_argument('--grad_max_norm', type=float, default=0.)  #
 
 parser.add_argument('--embedding_dim', type=int, default=300)
@@ -35,7 +35,7 @@ parser.add_argument('--slice_train', type=int, default=None)
 parser.add_argument('--slice_val', type=int, default=None)
 parser.add_argument('--slice_test', type=int, default=None)
 
-parser.add_argument('--dropout', type=float, default=0.2)  #
+parser.add_argument('--dropout', type=float, default=0.25)  #
 parser.add_argument('--dropout_emb', type=float, default=0.)
 
 parser.add_argument('--batch_size', type=int, default=512)
@@ -49,9 +49,21 @@ parser.add_argument('--save_model', type=bool, default=False)
 parser.add_argument('--patience', type=int, default=4)
 
 
+
 parser.add_argument('--eed', type=bool, default=False)
 parser.add_argument('--eed_swapped', type=str, default='./res/data/wiki_pages/swapped_33_33_33/test_50_50_true_swap.tsv')
 parser.add_argument('--eed_regular', type=str, default='./res/data/wiki_pages/swapped_33_33_33/test_50_50_true_random.tsv')
+
+
+parser.add_argument('--test_con', type=bool, default=True)
+parser.add_argument('--con_data_path', type=str, default='./res/data/wiki_pages/swapped_33_33_33/test_con.tsv')
+
+parser.add_argument('--test_rand', type=bool, default=True)
+parser.add_argument('--rand_data_path', type=str, default='./res/data/wiki_pages/swapped_33_33_33/test_rand.tsv')
+
+parser.add_argument('--test_swap', type=bool, default=True)
+parser.add_argument('--swap_data_path', type=str, default='./res/data/wiki_pages/swapped_33_33_33/test_swap.tsv')
+
 
 
 def train_epoch(device, loader, model, epoch, optimizer, loss_func, config):
@@ -122,8 +134,8 @@ def evaluate_epoch(device, loader, model, epoch, loss_func, mode, config, finish
         # Draw confusion matrices:
         if config.task_type == 'snli':
             class_names = np.array(['entailment', 'contradiction', 'neutral'], dtype='<U10')
-        else:
-            class_names = np.array(['regular', 'random', ], dtype='<U10')
+        elif config.task_type == 'nsp':
+            class_names = np.array(['Consecutive', 'Random', ], dtype='<U10')
 
         np.set_printoptions(precision=2)
 
@@ -281,6 +293,7 @@ def main():
         test_targs, test_preds, raw_outputs_class_one, raw_outputs_class_two = [], [], [], []
 
         ### Evaluate test set
+        model.eval()
         for batch_idx, batch in enumerate(evaluation_iter):
             output = model(batch.premise[0], batch.premise[1], batch.hypothesis[0], batch.hypothesis[1])
             preds = torch.max(output, 1)[1]
@@ -312,6 +325,7 @@ def main():
         test_targs, test_preds, raw_outputs_class_one, raw_outputs_class_two = [], [], [], []
 
         ### Evaluate test set
+        model.eval()
         for batch_idx, batch in enumerate(evaluation_iter):
             output = model(batch.premise[0], batch.premise[1], batch.hypothesis[0], batch.hypothesis[1])
             preds = torch.max(output, 1)[1]
@@ -334,6 +348,82 @@ def main():
         y_test_targs = np.array(test_targs)
 
         draw_roc_curve(y_test_preds, y_test_targs, path=args.roc_curve_path_ext_swapped  )
+
+    if args.test_con == True:
+        evaluation_iter, eval_dataset = load_evaluation_dataset(TEXT, LABELS, path=args.con_data_path)
+
+        test_targs, test_preds, raw_outputs_class_one, raw_outputs_class_two = [], [], [], []
+
+        ### Evaluate test set
+        model.eval()
+        for batch_idx, batch in enumerate(evaluation_iter):
+            output = model(batch.premise[0], batch.premise[1], batch.hypothesis[0], batch.hypothesis[1])
+            preds = torch.max(output, 1)[1]
+
+            if (args.use_cuda):
+                raw_outputs_class_one += list(get_numpy(output[:, 0]))
+                raw_outputs_class_two += list(get_numpy(output[:, 1]))
+                test_targs += list(get_numpy(batch.label))
+                test_preds += list(get_numpy(preds.data))
+            else:
+                raw_outputs_class_one += list(get_numpy(output[:, 0]))
+                raw_outputs_class_two += list(get_numpy(output[:, 1]))
+                test_preds += list(preds.data.numpy())
+                test_targs += list(batch.label.numpy())
+        test_accuracy = accuracy_score(test_targs, test_preds)
+        print("\nEvaluation of Consecutive data set Acc:  %f" % (test_accuracy))
+        print('size of evaluation dataset: %d sentence pairs' % (len(eval_dataset)))
+
+    if args.test_rand == True:
+        evaluation_iter, eval_dataset = load_evaluation_dataset(TEXT, LABELS, path=args.rand_data_path)
+
+        test_targs, test_preds, raw_outputs_class_one, raw_outputs_class_two = [], [], [], []
+
+        ### Evaluate test set
+        model.eval()
+        for batch_idx, batch in enumerate(evaluation_iter):
+            output = model(batch.premise[0], batch.premise[1], batch.hypothesis[0], batch.hypothesis[1])
+            preds = torch.max(output, 1)[1]
+
+            if (args.use_cuda):
+                raw_outputs_class_one += list(get_numpy(output[:, 0]))
+                raw_outputs_class_two += list(get_numpy(output[:, 1]))
+                test_targs += list(get_numpy(batch.label))
+                test_preds += list(get_numpy(preds.data))
+            else:
+                raw_outputs_class_one += list(get_numpy(output[:, 0]))
+                raw_outputs_class_two += list(get_numpy(output[:, 1]))
+                test_preds += list(preds.data.numpy())
+                test_targs += list(batch.label.numpy())
+        test_accuracy = accuracy_score(test_targs, test_preds)
+        print("\nEvaluation of Random data set Acc:  %f" % (test_accuracy))
+        print('size of evaluation dataset: %d sentence pairs' % (len(eval_dataset)))
+
+    if args.test_swap == True:
+        evaluation_iter, eval_dataset = load_evaluation_dataset(TEXT, LABELS, path=args.swap_data_path)
+
+        test_targs, test_preds, raw_outputs_class_one, raw_outputs_class_two = [], [], [], []
+
+        ### Evaluate test set
+        model.eval()
+        for batch_idx, batch in enumerate(evaluation_iter):
+            output = model(batch.premise[0], batch.premise[1], batch.hypothesis[0], batch.hypothesis[1])
+            preds = torch.max(output, 1)[1]
+
+            if (args.use_cuda):
+                raw_outputs_class_one += list(get_numpy(output[:, 0]))
+                raw_outputs_class_two += list(get_numpy(output[:, 1]))
+                test_targs += list(get_numpy(batch.label))
+                test_preds += list(get_numpy(preds.data))
+            else:
+                raw_outputs_class_one += list(get_numpy(output[:, 0]))
+                raw_outputs_class_two += list(get_numpy(output[:, 1]))
+                test_preds += list(preds.data.numpy())
+                test_targs += list(batch.label.numpy())
+        test_accuracy = accuracy_score(test_targs, test_preds)
+        print("\nEvaluation of Swapped data set Acc:  %f" % (test_accuracy))
+        print('size of evaluation dataset: %d sentence pairs' % (len(eval_dataset)))
+
 
 if __name__ == '__main__':
     main()
